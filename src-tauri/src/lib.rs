@@ -121,11 +121,17 @@ pub fn run() {
                 let _ = overlay.hide();
                 
                 #[cfg(target_os = "windows")]
-                if let Ok(hwnd) = overlay.hwnd() {
-                    unsafe {
-                        let raw_hwnd: *mut std::ffi::c_void = std::mem::transmute(hwnd);
-                        win32::disable_shadow(raw_hwnd);
-                    }
+                {
+                    let overlay_clone = overlay.clone();
+                    tauri::async_runtime::spawn(async move {
+                        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+                        if let Ok(hwnd) = overlay_clone.hwnd() {
+                            unsafe {
+                                let raw_hwnd: *mut std::ffi::c_void = std::mem::transmute(hwnd);
+                                win32::disable_shadow(raw_hwnd);
+                            }
+                        }
+                    });
                 }
             }
 
