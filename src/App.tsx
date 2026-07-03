@@ -116,9 +116,6 @@ function App() {
     );
   }
 
-  if (showSplash) {
-    return <SplashScreen onDone={() => setShowSplash(false)} />;
-  }
 
 
   const handleAddRule = (e: React.FormEvent) => {
@@ -686,6 +683,7 @@ function App() {
           <SettingsDashboard isOpen={isSettingsOpen} onClose={handleCloseSettings} />
         </div>
       </div>
+      {showSplash && <SplashScreen onDone={() => setShowSplash(false)} />}
     </div>
   );
 }
