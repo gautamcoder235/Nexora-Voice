@@ -243,22 +243,41 @@ const MicVisualizer: React.FC<{ micName: string }> = ({ micName }) => {
 
     const initAudio = async () => {
       try {
+        // 1. Request general microphone permission first to reveal device labels
+        let tempStream: MediaStream | null = null;
+        try {
+          tempStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        } catch (e) {
+          console.warn("Failed to obtain initial microphone permission:", e);
+          return;
+        }
+
+        // 2. Enumerate devices now that labels are populated
         const devices = await navigator.mediaDevices.enumerateDevices();
+        
+        // 3. Stop the temporary permission stream tracks so we don't lock the mic
+        tempStream.getTracks().forEach(t => t.stop());
+
+        if (!isActive) return;
+
         const audioDevices = devices.filter(d => d.kind === "audioinput");
         
-        // Find matching device
+        // 4. Find matching device by name
         const matched = audioDevices.find(d => {
           const l = d.label.toLowerCase();
           const m = micName.toLowerCase();
           return l.includes(m) || m.includes(l);
         });
 
-        // Use exact deviceId if found, fallback to default
-        const constraints = matched 
-          ? { audio: { deviceId: { exact: matched.deviceId } } }
-          : { audio: true };
+        if (!matched) {
+          console.warn(`No matching audio input device found for name: ${micName}`);
+          return;
+        }
 
-        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        // 5. Open the exact matching device
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: { deviceId: { exact: matched.deviceId } }
+        });
 
         if (!isActive) {
           stream.getTracks().forEach(t => t.stop());
@@ -351,6 +370,7 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
 
   const [modelsStatus, setModelsStatus] = useState<ModelsStatusMap>({});
   const [isLoadingSettings, setIsLoadingSettings] = useState<boolean>(true);
+  const [isRefreshingStatus, setIsRefreshingStatus] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [loadingModelKey, setLoadingModelKey] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -371,9 +391,13 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
   const [activeTab, setActiveTab] = useState<"general" | "models" | "mic" | "history">("general");
 
   // Fetch Settings & Model Status with retry for backend startup
-  const loadData = async () => {
+  const loadData = async (isSilent = false) => {
     try {
-      setIsLoadingSettings(true);
+      if (!isSilent) {
+        setIsLoadingSettings(true);
+      } else {
+        setIsRefreshingStatus(true);
+      }
       setErrorMsg(null);
       
       // Settings are stored locally, always available
@@ -395,7 +419,8 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
 
       // Models status needs the backend — retry with backoff
       let connected = false;
-      for (let attempt = 0; attempt < 10; attempt++) {
+      const maxAttempts = isSilent ? 1 : 10;
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
         try {
           const status = await invoke<ModelsStatusMap>("get_models_status");
           setModelsStatus(status);
@@ -403,25 +428,33 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
           setErrorMsg(null);
           break;
         } catch (err) {
-          console.warn(`Backend not ready (attempt ${attempt + 1}/10)...`);
-          setErrorMsg(`Connecting to Whisper engine... (attempt ${attempt + 1}/10)`);
-          await new Promise(r => setTimeout(r, 3000));
+          console.warn(`Backend not ready (attempt ${attempt + 1}/${maxAttempts})...`);
+          if (!isSilent) {
+            setErrorMsg(`Connecting to Whisper engine... (attempt ${attempt + 1}/10)`);
+            await new Promise(r => setTimeout(r, 3000));
+          }
         }
       }
       
-      if (!connected) {
+      if (!connected && !isSilent) {
         setErrorMsg("Failed to connect to Whisper backend. Please verify that the FastAPI backend server is running.");
       }
     } catch (err) {
       console.error(err);
-      setErrorMsg("Failed to load settings.");
+      if (!isSilent) {
+        setErrorMsg("Failed to load settings.");
+      }
     } finally {
-      setIsLoadingSettings(false);
+      if (!isSilent) {
+        setIsLoadingSettings(false);
+      } else {
+        setIsRefreshingStatus(false);
+      }
     }
   };
 
   useEffect(() => {
-    loadData();
+    loadData(false);
 
     // Listen to real-time history updates from Rust
     let unlistenPromise = listen<HistoryEntry[]>("history-updated", (event) => {
@@ -587,8 +620,8 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
               <div className={`status-dot ${errorMsg ? "error" : "online"}`} />
               <span className="status-label">{errorMsg ? "Disconnected" : "Engine Online"}</span>
             </div>
-            <button onClick={loadData} className="refresh-status-btn" title="Refresh connection">
-              <RefreshCw className="h-3.5 w-3.5" />
+            <button onClick={() => loadData(true)} className="refresh-status-btn" title="Refresh connection">
+              <RefreshCw className={`h-3.5 w-3.5 ${isRefreshingStatus ? "animate-spin" : ""}`} />
             </button>
           </div>
         </aside>
