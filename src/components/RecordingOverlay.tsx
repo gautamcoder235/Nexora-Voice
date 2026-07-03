@@ -198,7 +198,7 @@ export const RecordingOverlay: React.FC = () => {
           boxShadow    : isTranscribing
             ? "0 0 6px #c084fc, 0 0 14px rgba(192,132,252,0.4)"
             : "0 0 6px #22d3ee, 0 0 12px rgba(34,211,238,0.35)",
-          animation    : (isListening && !barsVisible) || isTranscribing
+          animation    : isListening || isTranscribing
             ? "pulse-dot 1.6s ease-in-out infinite"
             : "none",
           flexShrink   : 0,
