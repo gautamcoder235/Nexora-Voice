@@ -9,8 +9,8 @@ const BAR_COUNT     = 7;
 const MIN_H         = 3;    // px resting
 const MAX_H         = 26;   // px peak
 const PHASE         = [0.88, 1.12, 0.78, 1.0, 0.82, 1.18, 0.94];
-// How many frames of silence before we hide bars (90 frames @ 60fps = 1.5s VAD hold)
-const SILENCE_FRAMES = 90;
+// How many frames of silence before we hide bars (180 frames @ 60fps = 3.0s VAD hold)
+const SILENCE_FRAMES = 180;
 
 export const RecordingOverlay: React.FC = () => {
   const [overlayState, setOverlayState] = useState<OverlayState>("idle");
