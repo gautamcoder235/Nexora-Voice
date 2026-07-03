@@ -217,12 +217,10 @@ export const RecordingOverlay: React.FC = () => {
           paddingBottom : 7,
           boxSizing     : "border-box",
           flexShrink    : 0,
-          // Smooth fade + slight scale when appearing
-          opacity       : barsVisible ? 1 : 0,
-          transform     : barsVisible ? "scaleY(1)" : "scaleY(0.3)",
-          transition    : barsVisible
-            ? "opacity 0.1s ease, transform 0.1s ease"
-            : "opacity 0.35s ease, transform 0.35s ease",
+          width         : visualExpanded ? "36px" : "0px",
+          opacity       : visualExpanded ? 1 : 0,
+          overflow      : "hidden",
+          transition    : "width 0.28s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s ease",
         }}>
           {Array.from({ length: BAR_COUNT }, (_, i) => (
             <div
@@ -251,6 +249,10 @@ export const RecordingOverlay: React.FC = () => {
           paddingBottom: 8,
           boxSizing: "border-box",
           flexShrink: 0,
+          width         : visualExpanded ? "36px" : "0px",
+          opacity       : visualExpanded ? 1 : 0,
+          overflow      : "hidden",
+          transition    : "width 0.28s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s ease",
         }}>
           {Array.from({ length: 7 }, (_, i) => (
             <div
