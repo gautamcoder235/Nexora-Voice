@@ -69,10 +69,10 @@ export const RecordingOverlay: React.FC = () => {
     // ─── rAF loop: direct DOM writes, zero React overhead ───────────────
     const animate = () => {
       const raw   = rmsRef.current;
-      // Gate: require RMS to be 2× above baseline before anything shows.
-      // e.g. baseline=0.05 → gate=0.10 → only speech at 0.10+ triggers bars.
+      // Gate: require RMS to be 1.5× above baseline before anything shows.
+      // e.g. baseline=0.05 → gate=0.075 → only speech at 0.075+ triggers bars.
       // Minimum gate of 0.018 ensures very quiet environments still have a floor.
-      const floor   = Math.max(noiseRef.current * 2.0, 0.018);
+      const floor   = Math.max(noiseRef.current * 1.5, 0.018);
       const cleaned = raw > floor ? raw - floor : 0;
 
       // Fast attack (0.92), slow decay (0.20)
@@ -85,13 +85,13 @@ export const RecordingOverlay: React.FC = () => {
       const level      = Math.pow(normalized, 0.55);
 
       // Track silence to auto-hide bars
-      if (level < 0.12) {
+      if (level < 0.10) {
         silentFrames.current = Math.min(silentFrames.current + 1, SILENCE_FRAMES + 1);
       } else {
         silentFrames.current = 0;
       }
 
-      const shouldShowBars = level >= 0.12;
+      const shouldShowBars = level >= 0.10;
 
       // Flip React state only on transition (not every frame)
       if (shouldShowBars && !barsVisRef.current) {
