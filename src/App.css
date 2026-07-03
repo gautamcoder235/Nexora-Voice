@@ -933,3 +933,70 @@ body {
 .glass-panel:hover {
   border-color: rgba(255, 255, 255, 0.09) !important;
 }
+
+/* Custom Microphone Permission Onboarding Banners */
+.mic-permission-banner {
+  background: rgba(6, 182, 212, 0.04);
+  border: 1px dashed rgba(6, 182, 212, 0.25);
+  border-radius: 12px;
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+  animation: fadeInPermission 0.3s ease-out;
+}
+
+.mic-permission-banner.denied {
+  background: rgba(239, 68, 68, 0.03);
+  border-color: rgba(239, 68, 68, 0.25);
+}
+
+.mic-permission-banner .banner-text {
+  flex-grow: 1;
+}
+
+.mic-permission-banner h4 {
+  margin: 0 0 4px 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.mic-permission-banner p {
+  margin: 0;
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.btn-cyan {
+  background: #06b6d4;
+  color: #030712;
+  border: none;
+  border-radius: 8px;
+  padding: 6px 14px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(6, 182, 212, 0.2);
+  flex-shrink: 0;
+}
+
+.btn-cyan:hover {
+  background: #22d3ee;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(34, 211, 238, 0.35);
+}
+
+.btn-cyan:active {
+  transform: translateY(0);
+}
+
+@keyframes fadeInPermission {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+

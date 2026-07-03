@@ -377,6 +377,7 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [microphones, setMicrophones] = useState<string[]>([]);
   const [selectedMic, setSelectedMic] = useState<string>("");
+  const [micPermissionState, setMicPermissionState] = useState<"granted" | "prompt" | "denied">("prompt");
   
   interface HistoryEntry {
     id: string;
@@ -453,8 +454,47 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
     }
   };
 
+  const requestMicPermission = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach(t => t.stop());
+      setMicPermissionState("granted");
+      // Force refresh microphone list to populate real device labels
+      try {
+        const mics = await invoke<string[]>("list_microphones");
+        setMicrophones(mics);
+      } catch (e) { console.warn("Mic reload failed", e); }
+    } catch (e) {
+      console.warn("Microphone permission denied:", e);
+      setMicPermissionState("denied");
+    }
+  };
+
   useEffect(() => {
     loadData(false);
+
+    // Query microphone permission state
+    if (navigator.permissions && navigator.permissions.query) {
+      navigator.permissions.query({ name: "microphone" as PermissionName })
+        .then((result) => {
+          setMicPermissionState(result.state);
+          result.onchange = () => {
+            setMicPermissionState(result.state);
+          };
+        })
+        .catch((e) => {
+          console.warn("Permissions API not supported:", e);
+          navigator.mediaDevices.enumerateDevices().then(devices => {
+            const hasLabels = devices.some(d => d.kind === "audioinput" && d.label !== "");
+            setMicPermissionState(hasLabels ? "granted" : "prompt");
+          });
+        });
+    } else {
+      navigator.mediaDevices.enumerateDevices().then(devices => {
+        const hasLabels = devices.some(d => d.kind === "audioinput" && d.label !== "");
+        setMicPermissionState(hasLabels ? "granted" : "prompt");
+      });
+    }
 
     // Listen to real-time history updates from Rust
     let unlistenPromise = listen<HistoryEntry[]>("history-updated", (event) => {
@@ -893,6 +933,31 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
               <p className="input-help" style={{ marginBottom: 16, fontSize: 12 }}>
                 Select the audio input device to use for voice dictation. The selected microphone will be used for all recordings.
               </p>
+
+              {/* Custom Permission Banners */}
+              {micPermissionState === "prompt" && (
+                <div className="mic-permission-banner">
+                  <Mic className="h-5 w-5 text-cyan-400" style={{ flexShrink: 0 }} />
+                  <div className="banner-text">
+                    <h4>Microphone Access Required</h4>
+                    <p>Enable live voice reacting bars and mic preview levels inside settings.</p>
+                  </div>
+                  <button onClick={requestMicPermission} className="btn-cyan">
+                    Enable Preview
+                  </button>
+                </div>
+              )}
+
+              {micPermissionState === "denied" && (
+                <div className="mic-permission-banner denied">
+                  <AlertTriangle className="h-5 w-5 text-red-400" style={{ flexShrink: 0 }} />
+                  <div className="banner-text">
+                    <h4>Microphone Access Blocked</h4>
+                    <p>Live visualizers are disabled. Please unblock microphone access in your Windows settings.</p>
+                  </div>
+                </div>
+              )}
+
               <div className="models-list-card">
                 {microphones.length === 0 ? (
                   <div className="model-card-item" style={{ justifyContent: "center", padding: "24px" }}>
@@ -931,8 +996,8 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
                           <div className="btn-glass" style={{ pointerEvents: "none" }}>Select</div>
                         )}
                       </div>
-                      {/* Live reacting voice bar */}
-                      <MicVisualizer micName={mic} />
+                      {/* Live reacting voice bar (only render when permission is granted) */}
+                      {micPermissionState === "granted" && <MicVisualizer micName={mic} />}
                     </button>
                   ))
                 )}
