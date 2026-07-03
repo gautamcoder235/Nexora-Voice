@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { LogicalSize } from "@tauri-apps/api/dpi";
 
 type OverlayState = "idle" | "listening" | "transcribing";
 
@@ -159,37 +158,10 @@ export const RecordingOverlay: React.FC = () => {
   const isListening    = overlayState === "listening";
   const isTranscribing = overlayState === "transcribing";
 
-  // Dynamic window resizing coordinated with visual transitions
+  // Visual state updates driven by component events
   useEffect(() => {
-    let timeoutId: number;
-    const updateSize = async () => {
-      const active = barsVisible || isTranscribing;
-      if (active) {
-        // Expand window bounds instantly
-        try {
-          await getCurrentWindow().setSize(new LogicalSize(96, 38));
-        } catch (e) {
-          console.error(e);
-        }
-        setVisualExpanded(true);
-      } else {
-        // Start collapsing transition
-        setVisualExpanded(false);
-        // Wait for CSS transition (280ms) to complete before shrinking window bounds
-        timeoutId = window.setTimeout(async () => {
-          try {
-            await getCurrentWindow().setSize(new LogicalSize(38, 38));
-          } catch (e) {
-            console.error(e);
-          }
-        }, 300);
-      }
-    };
-    updateSize();
-
-    return () => {
-      if (timeoutId) clearTimeout(timeoutId);
-    };
+    const active = barsVisible || isTranscribing;
+    setVisualExpanded(active);
   }, [barsVisible, isTranscribing]);
 
   return (
@@ -201,7 +173,7 @@ export const RecordingOverlay: React.FC = () => {
         display       : "flex",
         alignItems    : "center",
         justifyContent: "center",
-        gap           : barsVisible ? "7px" : isTranscribing ? "5px" : "0px",
+        gap           : visualExpanded ? "7px" : "0px",
         background    : "rgba(5, 10, 20, 0.88)",
         backdropFilter: "blur(16px)",
         WebkitBackdropFilter: "blur(16px)",
