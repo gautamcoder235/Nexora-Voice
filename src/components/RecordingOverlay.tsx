@@ -75,9 +75,9 @@ export const RecordingOverlay: React.FC = () => {
       const floor   = Math.max(noiseRef.current * 1.5, 0.018);
       const cleaned = raw > floor ? raw - floor : 0;
 
-      // Fast attack (0.92), slow decay (0.20)
+      // Fast attack (0.92), slow decay (0.12)
       const prev  = smoothRef.current;
-      const coeff = cleaned > prev ? 0.92 : 0.20;
+      const coeff = cleaned > prev ? 0.92 : 0.12;
       const smooth = prev + (cleaned - prev) * coeff;
       smoothRef.current = smooth;
 
@@ -107,7 +107,7 @@ export const RecordingOverlay: React.FC = () => {
         const jitter = 0.65 + Math.random() * 0.7;
         const phased = level * PHASE[i] * jitter;
         const target = MIN_H + Math.min(phased, 1.0) * (MAX_H - MIN_H);
-        const spd    = target > cur ? 0.92 : 0.22;
+        const spd    = target > cur ? 0.92 : 0.08;
         const next   = cur + (target - cur) * spd;
 
         const el = barRefs.current[i];
