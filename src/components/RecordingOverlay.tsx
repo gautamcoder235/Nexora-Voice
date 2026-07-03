@@ -168,8 +168,8 @@ export const RecordingOverlay: React.FC = () => {
     <div
       onMouseDown={handleMouseDown}
       style={{
-        width         : visualExpanded ? "96px" : "38px",
-        height        : "38px",
+        width         : visualExpanded ? "96px" : "36px",
+        height        : "36px",
         display       : "flex",
         alignItems    : "center",
         justifyContent: "center",
