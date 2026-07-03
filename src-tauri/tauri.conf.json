@@ -27,7 +27,7 @@
         "title": "Nexora Voice Overlay",
         "width": 108,
         "height": 48,
-        "center": true,
+        "center": false,
         "visible": false,
         "transparent": true,
         "decorations": false,
