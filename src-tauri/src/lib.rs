@@ -368,21 +368,55 @@ mod win32 {
     type HMODULE = *mut c_void;
     type FARPROC = *mut c_void;
 
+    #[repr(C)]
+    struct MARGINS {
+        cx_left_width: i32,
+        cx_right_width: i32,
+        cy_top_height: i32,
+        cy_bottom_height: i32,
+    }
+
     extern "system" {
         fn LoadLibraryA(lp_lib_file_name: *const u8) -> HMODULE;
         fn GetProcAddress(h_module: HMODULE, lp_proc_name: *const u8) -> FARPROC;
         fn FreeLibrary(h_module: HMODULE) -> i32;
+
+        fn SetWindowLongW(hwnd: HWND, n_index: i32, dw_new_long: i32) -> i32;
+        fn SetWindowPos(
+            hwnd: HWND,
+            hwnd_insert_after: HWND,
+            x: i32,
+            y: i32,
+            cx: i32,
+            cy: i32,
+            flags: u32,
+        ) -> i32;
     }
 
     pub unsafe fn disable_shadow(hwnd: HWND) {
+        // 1. Extend the frame into the client area using dwmapi.dll dynamically (to enable true alpha composition)
         let lib_name = b"dwmapi.dll\0";
         let h_module = LoadLibraryA(lib_name.as_ptr());
         if !h_module.is_null() {
-            let proc_name = b"DwmSetWindowAttribute\0";
-            let func_ptr = GetProcAddress(h_module, proc_name.as_ptr());
-            if !func_ptr.is_null() {
+            let extend_proc = b"DwmExtendFrameIntoClientArea\0";
+            let extend_func_ptr = GetProcAddress(h_module, extend_proc.as_ptr());
+            if !extend_func_ptr.is_null() {
+                let func: unsafe extern "system" fn(HWND, *const MARGINS) -> i32 = std::mem::transmute(extend_func_ptr);
+                let margins = MARGINS {
+                    cx_left_width: -1,
+                    cx_right_width: -1,
+                    cy_top_height: -1,
+                    cy_bottom_height: -1,
+                };
+                let _ = func(hwnd, &margins);
+            }
+
+            let attr_proc = b"DwmSetWindowAttribute\0";
+            let attr_func_ptr = GetProcAddress(h_module, attr_proc.as_ptr());
+            if !attr_func_ptr.is_null() {
+                let func: unsafe extern "system" fn(HWND, u32, *const c_void, u32) -> i32 = std::mem::transmute(attr_func_ptr);
+                
                 // DWMWA_NCRENDERING_POLICY = 2, DWMNCRP_DISABLED = 1
-                let func: unsafe extern "system" fn(HWND, u32, *const c_void, u32) -> i32 = std::mem::transmute(func_ptr);
                 let policy: i32 = 1; 
                 let _ = func(hwnd, 2, &policy as *const i32 as *const c_void, 4);
 
@@ -392,6 +426,31 @@ mod win32 {
             }
             FreeLibrary(h_module);
         }
+
+        // 2. Adjust window styles to ensure it is a clean borderless POPUP
+        const GWL_STYLE: i32 = -16;
+        const WS_POPUP: i32 = 0x80000000u32 as i32;
+        const WS_VISIBLE: i32 = 0x10000000u32 as i32;
+        let _ = SetWindowLongW(hwnd, GWL_STYLE, WS_POPUP | WS_VISIBLE);
+
+        // 3. Clear extended styles (GWL_EXSTYLE) that might draw a border or window frame
+        const GWL_EXSTYLE: i32 = -20;
+        const WS_EX_APPWINDOW: i32 = 0x00040000;
+        let _ = SetWindowLongW(hwnd, GWL_EXSTYLE, WS_EX_APPWINDOW);
+
+        // 4. Force repaint and style apply using SetWindowPos (SWP_FRAMECHANGED)
+        const SWP_NOSIZE: u32 = 0x0001;
+        const SWP_NOMOVE: u32 = 0x0002;
+        const SWP_NOZORDER: u32 = 0x0004;
+        const SWP_FRAMECHANGED: u32 = 0x0020;
+        const SWP_SHOWWINDOW: u32 = 0x0040;
+        
+        let _ = SetWindowPos(
+            hwnd,
+            std::ptr::null_mut(),
+            0, 0, 0, 0,
+            SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED | SWP_SHOWWINDOW
+        );
     }
 }
 
