@@ -365,8 +365,8 @@ export const OverviewDashboard: React.FC = () => {
         <div style={{ display: "flex", flexDirection: "column", gap: 12, minWidth: 0 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <FileText className="text-indigo-400" style={{ width: 14, height: 14 }} />
-              <h3 style={{ fontSize: 15, fontWeight: 600, color: "rgba(255, 255, 255, 0.9)", margin: 0, letterSpacing: "0.02em" }}>
+              <FileText className="h-4 w-4 text-indigo-400" />
+              <h3 style={{ fontSize: 14, fontWeight: 700, color: "rgba(255, 255, 255, 0.8)", margin: 0, letterSpacing: "0.05em" }}>
                 Recent Transcriptions
               </h3>
             </div>

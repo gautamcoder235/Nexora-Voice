@@ -67,9 +67,6 @@ pub fn run() {
                     let app_handle = window.app_handle();
                     let backend = app_handle.state::<BackendServer>();
                     backend.stop();
-                    for (_, win) in app_handle.webview_windows() {
-                        let _ = win.close();
-                    }
                     app_handle.exit(0);
                 }
             }
@@ -118,9 +115,6 @@ pub fn run() {
                             // Kill backend server before exit
                             let backend = app_h.state::<BackendServer>();
                             backend.stop();
-                            for (_, win) in app_h.webview_windows() {
-                                let _ = win.close();
-                            }
                             app_h.exit(0);
                         }
                         _ => {}
@@ -142,13 +136,6 @@ pub fn run() {
             // Overlay window needs to be invisible at startup
             if let Some(overlay) = app.get_webview_window("overlay") {
                 let _ = overlay.hide();
-                if let Ok(Some(monitor)) = overlay.primary_monitor() {
-                    let screen_size = monitor.size();
-                    // Place at bottom right (like a notification), width 108, height 48, padding from edges
-                    let x = screen_size.width.saturating_sub(108 + 30) as i32;
-                    let y = screen_size.height.saturating_sub(48 + 60) as i32; 
-                    let _ = overlay.set_position(tauri::Position::Physical(tauri::PhysicalPosition { x, y }));
-                }
                 
                 #[cfg(target_os = "windows")]
                 {
