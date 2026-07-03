@@ -273,7 +273,7 @@ export const RecordingOverlay: React.FC = () => {
       <style>{`
         @keyframes pulse-dot {
           0%, 100% { transform: scale(1);   opacity: 1; }
-          50%       { transform: scale(0.55); opacity: 0.35; }
+          50%       { transform: scale(0.82); opacity: 0.75; }
         }
         @keyframes processing-ripple {
           0%   { transform: scaleY(0.3); opacity: 0.4; }
