@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { LogicalSize } from "@tauri-apps/api/dpi";
 
 type OverlayState = "idle" | "listening" | "transcribing";
 
@@ -8,12 +9,13 @@ const BAR_COUNT     = 7;
 const MIN_H         = 3;    // px resting
 const MAX_H         = 26;   // px peak
 const PHASE         = [0.88, 1.12, 0.78, 1.0, 0.82, 1.18, 0.94];
-// How many frames of silence before we hide bars (≈30 frames @ 60fps = 0.5s)
-const SILENCE_FRAMES = 30;
+// How many frames of silence before we hide bars (90 frames @ 60fps = 1.5s VAD hold)
+const SILENCE_FRAMES = 90;
 
 export const RecordingOverlay: React.FC = () => {
   const [overlayState, setOverlayState] = useState<OverlayState>("idle");
   const [barsVisible,  setBarsVisible]  = useState(false);
+  const [visualExpanded, setVisualExpanded] = useState(false);
 
   // DOM refs for each bar — we write style directly, no React state
   const barRefs   = useRef<(HTMLDivElement | null)[]>(Array(BAR_COUNT).fill(null));
@@ -157,12 +159,45 @@ export const RecordingOverlay: React.FC = () => {
   const isListening    = overlayState === "listening";
   const isTranscribing = overlayState === "transcribing";
 
+  // Dynamic window resizing coordinated with visual transitions
+  useEffect(() => {
+    let timeoutId: number;
+    const updateSize = async () => {
+      const active = barsVisible || isTranscribing;
+      if (active) {
+        // Expand window bounds instantly
+        try {
+          await getCurrentWindow().setSize(new LogicalSize(96, 38));
+        } catch (e) {
+          console.error(e);
+        }
+        setVisualExpanded(true);
+      } else {
+        // Start collapsing transition
+        setVisualExpanded(false);
+        // Wait for CSS transition (280ms) to complete before shrinking window bounds
+        timeoutId = window.setTimeout(async () => {
+          try {
+            await getCurrentWindow().setSize(new LogicalSize(38, 38));
+          } catch (e) {
+            console.error(e);
+          }
+        }, 300);
+      }
+    };
+    updateSize();
+
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [barsVisible, isTranscribing]);
+
   return (
     <div
       onMouseDown={handleMouseDown}
       style={{
-        width         : "100%",
-        height        : "100%",
+        width         : visualExpanded ? "96px" : "38px",
+        height        : "38px",
         display       : "flex",
         alignItems    : "center",
         justifyContent: "center",
@@ -170,10 +205,14 @@ export const RecordingOverlay: React.FC = () => {
         background    : "rgba(5, 10, 20, 0.88)",
         backdropFilter: "blur(16px)",
         WebkitBackdropFilter: "blur(16px)",
+        borderRadius  : visualExpanded ? "12px" : "50%",
+        border        : "1px solid rgba(255, 255, 255, 0.08)",
+        boxShadow     : "0 8px 24px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05)",
         cursor        : "grab",
         userSelect    : "none" as const,
         overflow      : "hidden",
-        transition    : "gap 0.2s ease",
+        boxSizing     : "border-box",
+        transition    : "width 0.28s cubic-bezier(0.34, 1.56, 0.64, 1), border-radius 0.28s cubic-bezier(0.34, 1.56, 0.64, 1), gap 0.22s ease",
       }}
     >
       {/* ── Dot — always visible during listening/transcribing ── */}
@@ -229,17 +268,30 @@ export const RecordingOverlay: React.FC = () => {
         </div>
       )}
 
-      {/* ── Transcribing dots ── */}
+      {/* ── Transcribing: Rippling voice data print ── */}
       {isTranscribing && (
-        <div style={{ display: "flex", alignItems: "center", gap: "3px", flexShrink: 0 }}>
-          {[0, 1, 2].map(i => (
-            <div key={i} style={{
-              width       : 4,
-              height      : 4,
-              borderRadius: "50%",
-              background  : "#c084fc",
-              animation   : `loading-bounce 1.2s ease-in-out ${i * 0.2}s infinite`,
-            }} />
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "2.5px",
+          height: "100%",
+          paddingTop: 8,
+          paddingBottom: 8,
+          boxSizing: "border-box",
+          flexShrink: 0,
+        }}>
+          {Array.from({ length: 7 }, (_, i) => (
+            <div
+              key={i}
+              style={{
+                width: 3,
+                height: "18px",
+                borderRadius: 2,
+                background: "linear-gradient(to top, #c084fc, #6366f1)",
+                animation: `processing-ripple 0.9s ease-in-out ${i * 0.1}s infinite alternate`,
+                boxShadow: "0 0 6px rgba(192, 132, 252, 0.4)",
+              }}
+            />
           ))}
         </div>
       )}
@@ -249,9 +301,9 @@ export const RecordingOverlay: React.FC = () => {
           0%, 100% { transform: scale(1);   opacity: 1; }
           50%       { transform: scale(0.55); opacity: 0.35; }
         }
-        @keyframes loading-bounce {
-          0%, 80%, 100% { transform: scale(0.4); opacity: 0.3; }
-          40%            { transform: scale(1);   opacity: 1; }
+        @keyframes processing-ripple {
+          0%   { transform: scaleY(0.3); opacity: 0.4; }
+          100% { transform: scaleY(1.3); opacity: 1; }
         }
       `}</style>
     </div>

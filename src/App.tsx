@@ -92,12 +92,19 @@ function App() {
   useEffect(() => {
     loadSettings();
     loadHistory();
+    
     const unlistenSTT = listen<any[]>("history-updated", (event) => {
       setHistory(event.payload);
     });
+
+    const unlistenModel = listen<string>("model-changed", (event) => {
+      setModelSize(event.payload);
+    });
+
     // windowLabel is initialized synchronously at creation
     return () => {
       unlistenSTT.then((fn) => fn());
+      unlistenModel.then((fn) => fn());
     };
   }, []);
 
@@ -136,7 +143,7 @@ function App() {
     );
 
     return (
-      <div style={{ display: "flex", flexDirection: "column", height: "100%", gap: 16, minWidth: 0 }}>
+      <div style={{ display: "flex", flexDirection: "column", width: "100%", height: "100%", gap: 16, minWidth: 0, boxSizing: "border-box" }}>
         <div style={{ display: "flex", alignItems: "flex-start", gap: 14 }}>
           <div style={{
             background: "rgba(255, 255, 255, 0.03)",
@@ -199,7 +206,7 @@ function App() {
               </div>
             )}
             
-            <div style={{ display: "flex", flexDirection: "column", gap: 8, overflowY: "auto", flexGrow: 1, paddingRight: 4 }}>
+            <div style={{ display: "flex", flexDirection: "column", width: "100%", height: "100%", overflowY: "auto", overflowX: "hidden", paddingRight: 8, minWidth: 0, boxSizing: "border-box" }}>
               {filteredRules.length === 0 ? (
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "60px 10px", gap: 8 }}>
                   <span style={{ color: "rgba(255,255,255,0.35)", fontSize: 12, textAlign: "center" }}>
@@ -343,7 +350,7 @@ function App() {
   // Instructions Tab View
   const renderInstructionsView = () => {
     return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", gap: 16, minWidth: 0 }}>
+    <div style={{ display: "flex", flexDirection: "column", width: "100%", height: "100%", gap: 16, minWidth: 0, boxSizing: "border-box" }}>
       <div style={{ display: "flex", alignItems: "flex-start", gap: 14 }}>
         <div style={{
           background: "rgba(255, 255, 255, 0.03)",
@@ -429,7 +436,7 @@ function App() {
   // Shortcuts Tab View
   const renderShortcutsView = () => {
     return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", gap: 16, minWidth: 0 }}>
+    <div style={{ display: "flex", flexDirection: "column", width: "100%", height: "100%", gap: 16, minWidth: 0, boxSizing: "border-box" }}>
       <div style={{ display: "flex", alignItems: "flex-start", gap: 14 }}>
         <div style={{
           background: "rgba(255, 255, 255, 0.03)",
@@ -555,7 +562,7 @@ function App() {
     const topKeywords = getTopKeywords();
 
     return (
-      <div style={{ display: "flex", flexDirection: "column", height: "100%", gap: 16, minWidth: 0 }}>
+      <div style={{ display: "flex", flexDirection: "column", width: "100%", height: "100%", gap: 16, minWidth: 0, boxSizing: "border-box" }}>
         <div style={{ display: "flex", alignItems: "flex-start", gap: 14 }}>
           <div style={{
             background: "rgba(255, 255, 255, 0.03)",
@@ -655,7 +662,19 @@ function App() {
         />
 
         {/* Core Workspace content frame */}
-        <div className="app-content" style={{ flexGrow: 1, minWidth: 0, padding: "20px 24px", overflow: "hidden", position: "relative" }}>
+        <div
+          className="app-content"
+          style={{
+            flexGrow: 1,
+            minWidth: 0,
+            width: 0,          /* force flex child to shrink/grow properly */
+            padding: "20px 24px",
+            overflow: "hidden",
+            position: "relative",
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
           {activeTab === "overview" && <OverviewDashboard modelSize={modelSize} />}
           {activeTab === "history" && <HistoryView />}
           {activeTab === "dictionary" && renderDictionaryView()}

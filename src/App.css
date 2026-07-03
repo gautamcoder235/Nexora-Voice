@@ -28,6 +28,10 @@
   --alert-success-border: rgba(16, 185, 129, 0.25);
 }
 
+html {
+  background: transparent !important;
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -62,8 +66,64 @@ body {
   flex-direction: column;
   width: 100vw;
   height: 100vh;
-  background: radial-gradient(circle at 50% 120%, rgba(139, 92, 246, 0.15), rgba(3, 7, 18, 0) 50%), var(--bg-app);
+  background: #030712;
   overflow: hidden;
+  position: relative;
+  isolation: isolate;
+}
+
+/* ── Layer 1: animated mesh gradient orbs (behind everything) ── */
+.app-shell::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background:
+    radial-gradient(ellipse 55% 45% at 15% 20%,  rgba(6,182,212,0.10)  0%, transparent 65%),
+    radial-gradient(ellipse 50% 55% at 85% 80%,  rgba(139,92,246,0.09) 0%, transparent 65%),
+    radial-gradient(ellipse 40% 50% at 80% 15%,  rgba(99,102,241,0.07) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 35% at 10% 80%,  rgba(6,182,212,0.06)  0%, transparent 60%),
+    radial-gradient(ellipse 30% 40% at 50% 50%,  rgba(168,85,247,0.05) 0%, transparent 70%);
+  animation: bg-drift 18s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
+/* ── Layer 2: dot grid ───────────────────────────────────────── */
+.app-shell::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-image:
+    radial-gradient(circle, rgba(99,102,241,0.18) 1px, transparent 1px);
+  background-size: 28px 28px;
+  /* Vignette: fade the dots to nothing at the centre so they don't compete with content */
+  mask-image: radial-gradient(
+    ellipse 80% 80% at 50% 50%,
+    transparent 25%,
+    rgba(0,0,0,0.35) 55%,
+    rgba(0,0,0,0.55) 100%
+  );
+  -webkit-mask-image: radial-gradient(
+    ellipse 80% 80% at 50% 50%,
+    transparent 25%,
+    rgba(0,0,0,0.35) 55%,
+    rgba(0,0,0,0.55) 100%
+  );
+  pointer-events: none;
+}
+
+/* Make sure real content sits above the pseudo-element layers */
+.app-shell > * {
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes bg-drift {
+  0%   { background-position: 0% 0%;   filter: hue-rotate(0deg); }
+  33%  { background-position: 3% -4%;  }
+  66%  { background-position: -4% 3%;  }
+  100% { background-position: 2% -2%;  filter: hue-rotate(15deg); }
 }
 
 .app-content {

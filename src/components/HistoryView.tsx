@@ -77,7 +77,7 @@ export const HistoryView: React.FC = () => {
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden", minWidth: 0 }}>
+    <div style={{ display: "flex", flexDirection: "column", width: "100%", height: "100%", overflow: "hidden", minWidth: 0, boxSizing: "border-box" }}>
       {/* Title block */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
         <div style={{ display: "flex", alignItems: "flex-start", gap: 14 }}>

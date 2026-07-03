@@ -38,6 +38,7 @@ export const OverviewDashboard: React.FC = () => {
   // Real status bar state
   const [modelSize, setModelSize] = useState<string>("small");
   const [backendOnline, setBackendOnline] = useState<boolean>(false);
+  const [tick, setTick] = useState(0); // bumped every 10s to refresh relative times
 
   const filteredHistory = history.filter(item => {
     if (selectedModeFilter !== "All" && item.mode !== selectedModeFilter) {
@@ -61,13 +62,23 @@ export const OverviewDashboard: React.FC = () => {
     loadHistory();
     loadSettings();
 
+    // Tick every 10s so relative timestamps stay current
+    const tickInterval = setInterval(() => setTick(t => t + 1), 10_000);
+
     // Event listener for history updates
     const unlistenSTT = listen<DictationLog[]>("history-updated", (event) => {
       setHistory(event.payload);
     });
 
+    // Event listener for model changes
+    const unlistenModel = listen<string>("model-changed", (event) => {
+      setModelSize(event.payload);
+    });
+
     return () => {
       unlistenSTT.then((fn) => fn());
+      unlistenModel.then((fn) => fn());
+      clearInterval(tickInterval);
     };
   }, []);
 
@@ -91,6 +102,27 @@ export const OverviewDashboard: React.FC = () => {
       setHistory(data);
     } catch (e) {
       console.error("Failed to load history logs", e);
+    }
+  };
+
+  // Relative time helper — updates via the 10s tick
+  const timeAgo = (ts: string): string => {
+    try {
+      // timestamp format from Rust: "YYYY-MM-DD HH:MM:SS"
+      const date = new Date(ts.replace(" ", "T"));
+      if (isNaN(date.getTime())) return "";
+      const diffMs   = Date.now() - date.getTime();
+      const diffSecs = Math.floor(diffMs / 1000);
+      if (diffSecs < 5)   return "just now";
+      if (diffSecs < 60)  return `${diffSecs}s ago`;
+      const diffMins = Math.floor(diffSecs / 60);
+      if (diffMins < 60)  return `${diffMins}m ago`;
+      const diffHrs  = Math.floor(diffMins / 60);
+      if (diffHrs  < 24)  return `${diffHrs}h ago`;
+      const diffDays = Math.floor(diffHrs / 24);
+      return `${diffDays}d ago`;
+    } catch {
+      return "";
     }
   };
 
@@ -158,7 +190,7 @@ export const OverviewDashboard: React.FC = () => {
   const getMockTarget = (idx: number) => targets[idx % targets.length];
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", overflowY: "auto", overflowX: "hidden", paddingRight: 8, minWidth: 0 }}>
+    <div style={{ display: "flex", flexDirection: "column", width: "100%", height: "100%", overflowY: "auto", overflowX: "hidden", paddingRight: 8, minWidth: 0, boxSizing: "border-box" }}>
       {/* Top Header bar */}
       <div style={{
         display: "flex",
@@ -514,6 +546,20 @@ export const OverviewDashboard: React.FC = () => {
                   </div>
 
                   <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                    {/* Relative time badge */}
+                    <span style={{
+                      fontSize     : 10,
+                      fontFamily   : "'JetBrains Mono', monospace",
+                      fontWeight   : 500,
+                      color        : "rgba(148,163,184,0.45)",
+                      letterSpacing: "0.02em",
+                      whiteSpace   : "nowrap",
+                      minWidth     : 54,
+                      textAlign    : "right",
+                    }}>
+                      {timeAgo(item.timestamp)}
+                    </span>
+
                     <button 
                       onClick={() => handleCopyToClipboard(item.text)}
                       style={{ background: "none", border: "none", color: "rgba(255,255,255,0.3)", padding: 4, cursor: "pointer", display: "flex", alignItems: "center" }}

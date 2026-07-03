@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
+import { listen, emit } from "@tauri-apps/api/event";
 import { 
   Sliders, 
   Settings,
@@ -362,6 +362,9 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
       // Update local settings state
       setSettings(prev => ({ ...prev, model_size: modelKey }));
       
+      // Emit event so other dashboard components sync immediately
+      await emit("model-changed", modelKey);
+      
       setSuccessMsg(`Model '${modelKey.toUpperCase()}' is now active!`);
       
       // Refresh status map
@@ -534,16 +537,25 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
             <form onSubmit={handleSaveSettings} className="settings-form">
 
               {/* ── Section 1: Trigger & Output ────────────────────── */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <div style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 16,
+                padding: "20px 24px",
+                borderRadius: "16px",
+                background: "rgba(255, 255, 255, 0.015)",
+                border: "1px solid rgba(255, 255, 255, 0.05)",
+                boxShadow: "inset 0 1px 1px rgba(255, 255, 255, 0.01)",
+              }}>
                 <div style={{
                   display: "flex",
                   alignItems: "center",
                   gap: 10,
                   paddingBottom: 10,
-                  borderBottom: "1px solid rgba(255,255,255,0.05)",
+                  borderBottom: "1px solid rgba(255, 255, 255, 0.05)",
                 }}>
-                  <Keyboard className="h-3.5 w-3.5" style={{ color: "rgba(34,211,238,0.6)" }} />
-                  <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.35)", letterSpacing: "0.1em", textTransform: "uppercase" }}>
+                  <Keyboard className="h-4 w-4" style={{ color: "rgba(34, 211, 238, 0.7)" }} />
+                  <span style={{ fontSize: 11.5, fontWeight: 700, color: "rgba(255, 255, 255, 0.6)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
                     Trigger &amp; Output
                   </span>
                 </div>
@@ -578,16 +590,25 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
               </div>
 
               {/* ── Section 2: Recording Behavior ──────────────────── */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <div style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 16,
+                padding: "20px 24px",
+                borderRadius: "16px",
+                background: "rgba(255, 255, 255, 0.015)",
+                border: "1px solid rgba(255, 255, 255, 0.05)",
+                boxShadow: "inset 0 1px 1px rgba(255, 255, 255, 0.01)",
+              }}>
                 <div style={{
                   display: "flex",
                   alignItems: "center",
                   gap: 10,
                   paddingBottom: 10,
-                  borderBottom: "1px solid rgba(255,255,255,0.05)",
+                  borderBottom: "1px solid rgba(255, 255, 255, 0.05)",
                 }}>
-                  <Zap className="h-3.5 w-3.5" style={{ color: "rgba(34,211,238,0.6)" }} />
-                  <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.35)", letterSpacing: "0.1em", textTransform: "uppercase" }}>
+                  <Zap className="h-4 w-4" style={{ color: "rgba(34, 211, 238, 0.7)" }} />
+                  <span style={{ fontSize: 11.5, fontWeight: 700, color: "rgba(255, 255, 255, 0.6)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
                     Recording Behavior
                   </span>
                 </div>
@@ -629,28 +650,6 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
                 </div>
               </div>
 
-              {/* ── Info banner: Custom Instructions live in Studio ─ */}
-              <div style={{
-                display: "flex",
-                alignItems: "flex-start",
-                gap: 12,
-                padding: "14px 16px",
-                borderRadius: 12,
-                background: "rgba(34,211,238,0.04)",
-                border: "1px solid rgba(34,211,238,0.12)",
-              }}>
-                <FileText className="h-4 w-4 shrink-0" style={{ color: "#22d3ee", marginTop: 1 }} />
-                <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                  <span style={{ fontSize: 12, fontWeight: 600, color: "rgba(255,255,255,0.75)" }}>
-                    Formatting Directives &amp; Custom Instructions
-                  </span>
-                  <p style={{ margin: 0, fontSize: 11, color: "rgba(148,163,184,0.7)", lineHeight: 1.55 }}>
-                    Custom parser rules, terminology preferences, and formatting guidelines are managed in the{" "}
-                    <strong style={{ color: "#22d3ee" }}>Studio → Instructions Prompt</strong> tab. Changes saved there apply globally to all dictation sessions.
-                  </p>
-                </div>
-              </div>
-
               {/* Submit Save button */}
               <div className="form-actions">
                 <button
@@ -667,6 +666,7 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
                 </button>
               </div>
             </form>
+
           )}
 
           {/* Tab 2: Model Management panel */}
