@@ -119,6 +119,14 @@ pub fn run() {
             // Overlay window needs to be invisible at startup
             if let Some(overlay) = app.get_webview_window("overlay") {
                 let _ = overlay.hide();
+                
+                #[cfg(target_os = "windows")]
+                if let Ok(hwnd) = overlay.hwnd() {
+                    unsafe {
+                        let raw_hwnd = std::mem::transmute::<tauri::window::Hwnd, *mut std::ffi::c_void>(hwnd);
+                        win32::disable_shadow(raw_hwnd);
+                    }
+                }
             }
 
             // Register Hotkeys
@@ -345,3 +353,39 @@ fn deduplicate_overlap(partials: Vec<(usize, String)>) -> String {
     }
     result
 }
+
+#[cfg(target_os = "windows")]
+mod win32 {
+    use std::ffi::c_void;
+
+    type HWND = *mut c_void;
+    type HMODULE = *mut c_void;
+    type FARPROC = *mut c_void;
+
+    extern "system" {
+        fn LoadLibraryA(lp_lib_file_name: *const u8) -> HMODULE;
+        fn GetProcAddress(h_module: HMODULE, lp_proc_name: *const u8) -> FARPROC;
+        fn FreeLibrary(h_module: HMODULE) -> i32;
+    }
+
+    pub unsafe fn disable_shadow(hwnd: HWND) {
+        let lib_name = b"dwmapi.dll\0";
+        let h_module = LoadLibraryA(lib_name.as_ptr());
+        if !h_module.is_null() {
+            let proc_name = b"DwmSetWindowAttribute\0";
+            let func_ptr = GetProcAddress(h_module, proc_name.as_ptr());
+            if !func_ptr.is_null() {
+                // DWMWA_NCRENDERING_POLICY = 2, DWMNCRP_DISABLED = 1
+                let func: unsafe extern "system" fn(HWND, u32, *const c_void, u32) -> i32 = std::mem::transmute(func_ptr);
+                let policy: i32 = 1; 
+                let _ = func(hwnd, 2, &policy as *const i32 as *const c_void, 4);
+
+                // DWMWA_WINDOW_CORNER_PREFERENCE = 33, DWMWCP_DONOTROUND = 1
+                let corner_pref: i32 = 1;
+                let _ = func(hwnd, 33, &corner_pref as *const i32 as *const c_void, 4);
+            }
+            FreeLibrary(h_module);
+        }
+    }
+}
+
