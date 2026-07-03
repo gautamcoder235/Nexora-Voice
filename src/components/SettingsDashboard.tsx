@@ -910,7 +910,8 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
                         width: "100%", 
                         background: "none",
                         position: "relative",
-                        paddingBottom: "22px" // gives room for the absolute visualizer bar at the bottom
+                        paddingBottom: "22px", // gives room for the absolute visualizer bar at the bottom
+                        overflow: "hidden"
                       }}
                     >
                       <div className="model-info-block" style={{ maxWidth: "80%" }}>
