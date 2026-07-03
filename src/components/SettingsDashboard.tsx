@@ -230,7 +230,114 @@ const HotkeyCapture: React.FC<HotkeyCaptureProps> = ({ value, onChange }) => {
   );
 };
 
+// Live volume visualization bar for mic selection cards
+const MicVisualizer: React.FC<{ micName: string }> = ({ micName }) => {
+  const [level, setLevel] = useState(0);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const rafRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    let isActive = true;
+
+    const initAudio = async () => {
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const audioDevices = devices.filter(d => d.kind === "audioinput");
+        
+        // Find matching device
+        const matched = audioDevices.find(d => {
+          const l = d.label.toLowerCase();
+          const m = micName.toLowerCase();
+          return l.includes(m) || m.includes(l);
+        });
+
+        // Use exact deviceId if found, fallback to default
+        const constraints = matched 
+          ? { audio: { deviceId: { exact: matched.deviceId } } }
+          : { audio: true };
+
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+
+        if (!isActive) {
+          stream.getTracks().forEach(t => t.stop());
+          return;
+        }
+
+        streamRef.current = stream;
+        const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+        const audioContext = new AudioContextClass();
+        audioContextRef.current = audioContext;
+
+        const source = audioContext.createMediaStreamSource(stream);
+        const analyser = audioContext.createAnalyser();
+        analyser.fftSize = 32; // small bin count for minimal CPU footprint
+        source.connect(analyser);
+        analyserRef.current = analyser;
+
+        const bufferLength = analyser.frequencyBinCount;
+        const dataArray = new Uint8Array(bufferLength);
+
+        const draw = () => {
+          if (!isActive || !analyserRef.current) return;
+          analyserRef.current.getByteFrequencyData(dataArray);
+
+          let sum = 0;
+          for (let i = 0; i < bufferLength; i++) {
+            sum += dataArray[i];
+          }
+          const avg = sum / bufferLength;
+          // Normalize & scale to visually represent speech sensitivity
+          const norm = Math.min(avg / 140, 1.0);
+          setLevel(norm);
+
+          rafRef.current = requestAnimationFrame(draw);
+        };
+        draw();
+      } catch (err) {
+        console.warn("Failed to capture mic stream preview:", err);
+      }
+    };
+
+    initAudio();
+
+    return () => {
+      isActive = false;
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(t => t.stop());
+      }
+      if (audioContextRef.current && audioContextRef.current.state !== "closed") {
+        audioContextRef.current.close();
+      }
+    };
+  }, [micName]);
+
+  return (
+    <div style={{
+      position: "absolute",
+      bottom: 0,
+      left: 0,
+      width: "100%",
+      height: 3,
+      background: "rgba(255, 255, 255, 0.02)",
+      overflow: "hidden",
+      borderRadius: "0 0 16px 16px"
+    }}>
+      <div style={{
+        height: "100%",
+        width: `${Math.max(level * 100, 1.5)}%`,
+        background: "linear-gradient(90deg, #10b981 0%, #22d3ee 100%)",
+        boxShadow: level > 0.05 ? "0 0 6px #10b981" : "none",
+        transition: "width 0.06s ease"
+      }} />
+    </div>
+  );
+};
+
 export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, onClose }) => {
+
   if (!isOpen) return null;
 
   const [settings, setSettings] = useState<AppSettings>({
@@ -760,7 +867,14 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
                       key={idx}
                       className={`model-card-item ${selectedMic === mic ? "active-border" : ""}`}
                       onClick={() => setSelectedMic(mic)}
-                      style={{ cursor: "pointer", textAlign: "left", width: "100%", background: "none" }}
+                      style={{ 
+                        cursor: "pointer", 
+                        textAlign: "left", 
+                        width: "100%", 
+                        background: "none",
+                        position: "relative",
+                        paddingBottom: "22px" // gives room for the absolute visualizer bar at the bottom
+                      }}
                     >
                       <div className="model-info-block" style={{ maxWidth: "80%" }}>
                         <div className="model-title-row">
@@ -779,6 +893,8 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
                           <div className="btn-glass" style={{ pointerEvents: "none" }}>Select</div>
                         )}
                       </div>
+                      {/* Live reacting voice bar */}
+                      <MicVisualizer micName={mic} />
                     </button>
                   ))
                 )}
