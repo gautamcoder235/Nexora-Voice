@@ -123,7 +123,7 @@ pub fn run() {
                 #[cfg(target_os = "windows")]
                 if let Ok(hwnd) = overlay.hwnd() {
                     unsafe {
-                        let raw_hwnd = std::mem::transmute::<tauri::window::Hwnd, *mut std::ffi::c_void>(hwnd);
+                        let raw_hwnd: *mut std::ffi::c_void = std::mem::transmute(hwnd);
                         win32::disable_shadow(raw_hwnd);
                     }
                 }
