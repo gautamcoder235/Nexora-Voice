@@ -447,8 +447,7 @@ mod win32 {
         // 2. Adjust window styles to ensure it is a clean borderless POPUP
         const GWL_STYLE: i32 = -16;
         const WS_POPUP: i32 = 0x80000000u32 as i32;
-        const WS_VISIBLE: i32 = 0x10000000u32 as i32;
-        let _ = SetWindowLongW(hwnd, GWL_STYLE, WS_POPUP | WS_VISIBLE);
+        let _ = SetWindowLongW(hwnd, GWL_STYLE, WS_POPUP);
 
         // 3. Clear extended styles (GWL_EXSTYLE) that might draw a border or window frame
         const GWL_EXSTYLE: i32 = -20;
@@ -460,13 +459,13 @@ mod win32 {
         const SWP_NOMOVE: u32 = 0x0002;
         const SWP_NOZORDER: u32 = 0x0004;
         const SWP_FRAMECHANGED: u32 = 0x0020;
-        const SWP_SHOWWINDOW: u32 = 0x0040;
+        const SWP_NOACTIVATE: u32 = 0x0010;
         
         let _ = SetWindowPos(
             hwnd,
             std::ptr::null_mut(),
             0, 0, 0, 0,
-            SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED | SWP_SHOWWINDOW
+            SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED | SWP_NOACTIVATE
         );
     }
 }
