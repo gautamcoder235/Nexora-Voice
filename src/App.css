@@ -488,6 +488,19 @@ body {
   transform: rotate(180deg);
 }
 
+.refresh-status-btn.refreshing svg {
+  animation: spin-refresh 1.2s linear infinite;
+}
+
+@keyframes spin-refresh {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* Content Area styling */
 .dashboard-content {
   flex-grow: 1;

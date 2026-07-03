@@ -620,8 +620,12 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
               <div className={`status-dot ${errorMsg ? "error" : "online"}`} />
               <span className="status-label">{errorMsg ? "Disconnected" : "Engine Online"}</span>
             </div>
-            <button onClick={() => loadData(true)} className="refresh-status-btn" title="Refresh connection">
-              <RefreshCw className={`h-3.5 w-3.5 ${isRefreshingStatus ? "animate-spin" : ""}`} />
+            <button 
+              onClick={() => loadData(true)} 
+              className={`refresh-status-btn ${isRefreshingStatus ? "refreshing" : ""}`} 
+              title="Refresh connection"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
             </button>
           </div>
         </aside>
