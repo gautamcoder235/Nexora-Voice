@@ -1,10 +1,17 @@
 use tauri::{AppHandle, State, Manager};
 use uuid::Uuid;
 
-use crate::audio::{AudioRecorder, save_wav_file};
-use crate::client::{WhisperClient, ModelInfo};
+use crate::audio::AudioRecorder;
+use crate::model_manager::ModelManager;
+use crate::whisper_service::WhisperService;
 use crate::injector::inject_text;
 use crate::settings::{AppSettings, load_settings, save_settings};
+
+#[derive(serde::Serialize, Clone)]
+pub struct ModelInfo {
+    pub cached: bool,
+    pub active: bool,
+}
 
 #[tauri::command]
 pub fn get_settings(app: AppHandle) -> AppSettings {
@@ -28,7 +35,7 @@ pub async fn start_recording(
 pub async fn stop_recording(
     app: AppHandle,
     recorder: State<'_, AudioRecorder>,
-    client: State<'_, WhisperClient>
+    whisper: State<'_, WhisperService>
 ) -> Result<String, String> {
     // 1. Retrieve recorded float samples
     let samples = recorder.inner().stop()?;
@@ -39,25 +46,10 @@ pub async fn stop_recording(
     // 2. Load configurations
     let settings = load_settings(&app);
 
-    // 3. Save to a temporary WAV file in app data directory
-    let temp_dir = app.path().app_data_dir().map_err(|e: tauri::Error| e.to_string())?;
-    std::fs::create_dir_all(&temp_dir).map_err(|e| e.to_string())?;
-    
-    let file_id = Uuid::new_v4().to_string();
-    let file_path = temp_dir.join(format!("{}.wav", file_id));
-
-    // Save wav file
-    save_wav_file(&samples, &file_path)?;
-
-    // 4. Send request to FastAPI backend
+    // 4. Transcribe using native whisper.cpp
     let start_time = std::time::Instant::now();
-    let transcription_res = client.transcribe(&file_path).await;
+    let transcription_res = whisper.transcribe(&samples);
     let elapsed_ms = start_time.elapsed().as_millis() as u32;
-
-    // Delete temp WAV file
-    if file_path.exists() {
-        let _ = std::fs::remove_file(&file_path);
-    }
 
     // Handle transcription output
     let raw_text = transcription_res?;
@@ -78,16 +70,32 @@ pub async fn stop_recording(
 #[tauri::command]
 pub async fn switch_backend_model(
     model_size: String,
-    client: State<'_, WhisperClient>
+    model_manager: State<'_, ModelManager>,
+    whisper: State<'_, WhisperService>
 ) -> Result<(), String> {
-    client.select_model(&model_size).await
+    let path = model_manager.download_model(&model_size).await?;
+    whisper.load_model(&path, &model_size)?;
+    Ok(())
 }
 
 #[tauri::command]
 pub async fn get_models_status(
-    client: State<'_, WhisperClient>
+    model_manager: State<'_, ModelManager>,
+    whisper: State<'_, WhisperService>
 ) -> Result<std::collections::HashMap<String, ModelInfo>, String> {
-    client.get_models_status().await
+    let allowed_models = vec!["tiny", "base", "small", "medium"];
+    let mut status = std::collections::HashMap::new();
+    
+    let active_model = whisper.active_model.lock().unwrap().clone();
+    
+    for m in allowed_models {
+        status.insert(m.to_string(), ModelInfo {
+            cached: model_manager.is_model_cached(m),
+            active: m == active_model,
+        });
+    }
+    
+    Ok(status)
 }
 
 #[tauri::command]

@@ -1,12 +1,12 @@
 mod audio;
-mod backend_server;
 mod chunked_recorder;
-mod client;
 mod commands;
 mod history;
 mod injector;
 mod settings;
 mod tts;
+pub mod whisper_service;
+pub mod model_manager;
 
 use tauri::{Manager, Emitter, Listener};
 use tauri::menu::{Menu, MenuItem};
@@ -15,10 +15,10 @@ use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut};
 use std::str::FromStr;
 
 use audio::AudioRecorder;
-use backend_server::BackendServer;
 use chunked_recorder::ChunkedRecorder;
-use client::WhisperClient;
 use settings::load_settings;
+use whisper_service::WhisperService;
+use model_manager::ModelManager;
 
 fn setup_global_shortcut(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     let app_handle = app.handle();
@@ -55,43 +55,28 @@ pub fn run() {
             .build())
         .plugin(tauri_plugin_shell::init())
         
-        // Manage shared concurrent state
-        .manage(AudioRecorder::new())
-        .manage(ChunkedRecorder::new())
-        .manage(WhisperClient::new())
-        .manage(BackendServer::new())
-        
-        .on_window_event(|window, event| {
-            if let tauri::WindowEvent::CloseRequested { .. } = event {
-                if window.label() == "main" {
-                    let app_handle = window.app_handle();
-                    let backend = app_handle.state::<BackendServer>();
-                    backend.stop();
-                    app_handle.exit(0);
-                }
-            }
-        })
-
         .setup(|app| {
             // Setup Settings & Main Window
             let app_handle = app.handle().clone();
 
-            // Auto-start the FastAPI backend server
-            // project_root is the Nexora Voice directory (parent of src-tauri)
-            let project_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                .parent()
-                .expect("Cannot determine project root")
-                .to_path_buf();
+            // Register services
+            let model_manager = ModelManager::new(&app_handle);
+            app.manage(model_manager.clone());
             
-            let backend = app.state::<BackendServer>();
-            if let Err(e) = backend.start(&project_root) {
-                eprintln!("[Warning] Failed to auto-start backend: {}", e);
-                eprintln!("[Warning] You may need to start the FastAPI server manually.");
-            } else {
-                // Give the server a moment to initialize
-                std::thread::sleep(std::time::Duration::from_secs(2));
+            let whisper_service = WhisperService::new();
+            app.manage(whisper_service);
+            
+            app.manage(AudioRecorder::new());
+            app.manage(ChunkedRecorder::new());
+            
+            // Try loading default model (e.g., small) if it exists
+            let initial_model = "small";
+            let whisper = app.state::<WhisperService>();
+            if model_manager.is_model_cached(initial_model) {
+                let path = model_manager.get_model_path(initial_model);
+                let _ = whisper.load_model(&path, initial_model);
             }
-            
+
             // Create System Tray Menu
             let tray_menu = Menu::with_items(&app_handle, &[
                 &MenuItem::with_id(&app_handle, "show", "Show Settings", true, None::<&str>)?,
@@ -112,9 +97,6 @@ pub fn run() {
                             }
                         }
                         "quit" => {
-                            // Kill backend server before exit
-                            let backend = app_h.state::<BackendServer>();
-                            backend.stop();
                             app_h.exit(0);
                         }
                         _ => {}
@@ -181,12 +163,6 @@ pub fn run() {
                             // Spawn background timer to drain chunks every 5s
                             let app_h_loop = app_h.clone();
                             tauri::async_runtime::spawn(async move {
-                                let temp_dir = match app_h_loop.path().app_data_dir() {
-                                    Ok(d) => d,
-                                    Err(_) => return,
-                                };
-                                let _ = std::fs::create_dir_all(&temp_dir);
-
                                 loop {
                                     tokio::time::sleep(std::time::Duration::from_secs(5)).await;
                                     if !app_h_loop.state::<ChunkedRecorder>().is_recording() {
@@ -194,27 +170,24 @@ pub fn run() {
                                     }
 
                                     if let Some((chunk_samples, idx)) = app_h_loop.state::<ChunkedRecorder>().drain_chunk() {
-                                        let file_path = temp_dir.join(format!("chunk_{}_{}.wav", idx, uuid::Uuid::new_v4()));
-                                        if crate::audio::save_wav_file(&chunk_samples, &file_path).is_ok() {
-                                            let app_h_api = app_h_loop.clone();
-                                            let path_api = file_path.clone();
+                                        let app_h_api = app_h_loop.clone();
 
-                                            tauri::async_runtime::spawn(async move {
-                                                let client_api = app_h_api.state::<WhisperClient>();
-                                                let chunked_recorder_api = app_h_api.state::<ChunkedRecorder>();
-                                                match client_api.transcribe_chunk(&path_api, idx).await {
-                                                    Ok(text) => {
-                                                        if !text.is_empty() {
-                                                            chunked_recorder_api.add_partial(idx, text);
-                                                        }
-                                                    }
-                                                    Err(e) => {
-                                                        eprintln!("Failed to transcribe chunk {}: {}", idx, e);
+                                        tauri::async_runtime::spawn(async move {
+                                            let whisper = app_h_api.state::<WhisperService>();
+                                            let chunked_recorder_api = app_h_api.state::<ChunkedRecorder>();
+                                            
+                                            // Process directly from RAM!
+                                            match whisper.transcribe(&chunk_samples) {
+                                                Ok(text) => {
+                                                    if !text.is_empty() {
+                                                        chunked_recorder_api.add_partial(idx, text);
                                                     }
                                                 }
-                                                let _ = std::fs::remove_file(&path_api);
-                                            });
-                                        }
+                                                Err(e) => {
+                                                    eprintln!("Failed to transcribe chunk {}: {}", idx, e);
+                                                }
+                                            }
+                                        });
                                     }
                                 }
                             });
@@ -235,24 +208,19 @@ pub fn run() {
                                 }
                             };
 
-                            let client = app_h.state::<WhisperClient>();
+                            let whisper = app_h.state::<WhisperService>();
 
-                            // Transcribe remaining tail audio
+                            // Transcribe remaining tail audio directly from RAM
                             if remaining.len() >= 1600 {
-                                let temp_dir = app_h.path().app_data_dir().unwrap_or_default();
-                                let file_path = temp_dir.join(format!("chunk_tail_{}.wav", uuid::Uuid::new_v4()));
-                                if crate::audio::save_wav_file(&remaining, &file_path).is_ok() {
-                                    match client.transcribe_chunk(&file_path, tail_idx).await {
-                                        Ok(text) => {
-                                            if !text.is_empty() {
-                                                partials.push((tail_idx, text));
-                                            }
-                                        }
-                                        Err(e) => {
-                                            eprintln!("Failed to transcribe tail chunk: {}", e);
+                                match whisper.transcribe(&remaining) {
+                                    Ok(text) => {
+                                        if !text.is_empty() {
+                                            partials.push((tail_idx, text));
                                         }
                                     }
-                                    let _ = std::fs::remove_file(&file_path);
+                                    Err(e) => {
+                                        eprintln!("Failed to transcribe tail chunk: {}", e);
+                                    }
                                 }
                             }
 
@@ -293,8 +261,8 @@ pub fn run() {
                                 let _ = overlay.emit("status-change", "Transcribing...");
                             }
 
-                            let client = app_h.state::<WhisperClient>();
-                            match commands::stop_recording(app_h.clone(), recorder, client).await {
+                            let whisper = app_h.state::<WhisperService>();
+                            match commands::stop_recording(app_h.clone(), recorder, whisper).await {
                                 Ok(text) => {
                                     println!("Transcription completed: {}", text);
                                 }
@@ -312,6 +280,14 @@ pub fn run() {
             });
 
             Ok(())
+        })
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { .. } = event {
+                if window.label() == "main" {
+                    let app_handle = window.app_handle();
+                    app_handle.exit(0);
+                }
+            }
         })
         .invoke_handler(tauri::generate_handler![
             commands::get_settings,
@@ -469,4 +445,3 @@ mod win32 {
         );
     }
 }
-
