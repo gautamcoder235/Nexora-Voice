@@ -607,59 +607,134 @@ function App() {
         <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: "20px", flexGrow: 1, minHeight: 0 }}>
           {/* Speaking Frequency Chart Column */}
           <div className="glass-panel" style={{ padding: "20px", display: "flex", flexDirection: "column", gap: 16 }}>
-            <h3 style={{ fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.8)", margin: 0 }}>Daily Speaking Activity (Minutes)</h3>
-            
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <h3 style={{ fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.8)", margin: 0 }}>Daily Speaking Activity</h3>
+              <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", fontFamily: "monospace" }}>minutes / day</span>
+            </div>
+
             {history.length === 0 ? (
               <div style={{ display: "flex", alignItems: "center", justifyContent: "center", flexGrow: 1, color: "rgba(255,255,255,0.3)", fontSize: 12 }}>
                 No dictation activity recorded yet.
               </div>
             ) : (
-              /* Custom HTML Bar Chart */
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexGrow: 1, height: "180px", padding: "10px 10px 0 10px", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
-                {dailyActivity.map((d) => (
-                  <div key={d.day} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, flexGrow: 1 }}>
-                    <div style={{
-                      width: "18px",
-                      height: `${(d.val / maxActivityVal) * 140}px`,
-                      minHeight: d.val > 0 ? "4px" : "0px",
-                      background: "linear-gradient(to top, #8b5cf6, #06b6d4)",
-                      borderRadius: "4px 4px 0 0",
-                      boxShadow: d.val > 0 ? "0 0 10px rgba(6, 182, 212, 0.25)" : "none",
-                      transition: "height 0.4s"
-                    }} title={`${d.val.toFixed(2)} mins`} />
-                    <span style={{ fontSize: 10, color: "rgba(255,255,255,0.45)" }}>{d.day}</span>
-                  </div>
+              <div style={{ display: "flex", alignItems: "flex-end", flexGrow: 1, gap: 6, padding: "10px 4px 0 4px", position: "relative" }}>
+                {/* Y-axis gridlines */}
+                {[75, 50, 25].map(pct => (
+                  <div key={pct} style={{
+                    position: "absolute",
+                    left: 4, right: 4,
+                    bottom: `calc(${pct}% )`,
+                    borderTop: "1px dashed rgba(255,255,255,0.05)",
+                    pointerEvents: "none"
+                  }} />
                 ))}
+
+                {(() => {
+                  const todayIndex = (() => { const d = new Date().getDay(); return d === 0 ? 6 : d - 1; })();
+                  return dailyActivity.map((d, i) => {
+                    const isToday = i === todayIndex;
+                    const heightPct = (d.val / maxActivityVal) * 100;
+                    return (
+                      <div key={d.day} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, flexGrow: 1 }}>
+                        {/* Bar wrapper with tooltip */}
+                        <div className="chart-bar-wrap" style={{
+                          width: "75%",
+                          height: "140px",
+                          display: "flex",
+                          alignItems: "flex-end",
+                        }}>
+                          {d.val > 0 && (
+                            <div
+                              className="chart-bar"
+                              style={{
+                                width: "100%",
+                                height: `${Math.max(heightPct, 3)}%`,
+                                background: isToday
+                                  ? "linear-gradient(to top, #06b6d4, #22d3ee)"
+                                  : "linear-gradient(to top, #7c3aed, #6d28d9)",
+                                borderRadius: "5px 5px 0 0",
+                                boxShadow: isToday
+                                  ? "0 0 18px rgba(6,182,212,0.55), 0 0 6px rgba(6,182,212,0.3)"
+                                  : "0 0 8px rgba(109,40,217,0.2)",
+                                opacity: isToday ? 1 : 0.65,
+                                animationDelay: `${i * 0.06}s`,
+                                position: "relative",
+                              }}
+                            >
+                              <div className="bar-tooltip">
+                                {d.val < 1
+                                  ? `${(d.val * 60).toFixed(0)}s`
+                                  : `${d.val.toFixed(1)} min`}
+                              </div>
+                            </div>
+                          )}
+                          {d.val === 0 && (
+                            <div style={{ width: "100%", height: "3px", background: "rgba(255,255,255,0.04)", borderRadius: 3 }} />
+                          )}
+                        </div>
+                        <span style={{
+                          fontSize: 10,
+                          fontWeight: isToday ? 700 : 400,
+                          color: isToday ? "#22d3ee" : "rgba(255,255,255,0.4)",
+                          letterSpacing: isToday ? "0.04em" : 0,
+                        }}>{d.day}</span>
+                      </div>
+                    );
+                  });
+                })()}
               </div>
             )}
           </div>
 
-          {/* Analytics Distribution */}
-          <div className="glass-panel" style={{ padding: "20px", display: "flex", flexDirection: "column", gap: 16 }}>
+          {/* Top Keywords — horizontal frequency bars */}
+          <div className="glass-panel" style={{ padding: "20px", display: "flex", flexDirection: "column", gap: 12 }}>
             <h3 style={{ fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.8)", margin: 0 }}>Top Dictated Keywords</h3>
-            
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignContent: "flex-start", flexGrow: 1 }}>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, flexGrow: 1, justifyContent: topKeywords.length === 0 ? "center" : "flex-start" }}>
               {topKeywords.length === 0 ? (
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "100%", height: "100%", color: "rgba(255,255,255,0.3)", fontSize: 12 }}>
-                  Not enough dictation history to generate keyword statistics yet.
+                <div style={{ textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: 12 }}>
+                  Not enough dictation history yet.
                 </div>
-              ) : (
-                topKeywords.map((kw) => (
-                  <div key={kw.word} style={{
-                    background: "rgba(255,255,255,0.03)",
-                    border: "1px solid rgba(255,255,255,0.06)",
-                    borderRadius: "20px",
-                    padding: "6px 14px",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    fontSize: 11
-                  }}>
-                    <span style={{ color: "#fff", fontWeight: 600 }}>{kw.word}</span>
-                    <span style={{ color: "rgba(6, 182, 212, 0.8)", fontFamily: "monospace" }}>{kw.count}</span>
-                  </div>
-                ))
-              )}
+              ) : (() => {
+                const maxCount = topKeywords[0]?.count || 1;
+                return topKeywords.map((kw, i) => {
+                  const isTop3 = i < 3;
+                  const barPct = (kw.count / maxCount) * 100;
+                  return (
+                    <div key={kw.word} className="kw-bar-row" style={{ animationDelay: `${i * 0.04}s` }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 3 }}>
+                        <span style={{
+                          fontSize: 11,
+                          fontWeight: isTop3 ? 700 : 500,
+                          color: isTop3 ? "#fff" : "rgba(255,255,255,0.55)",
+                        }}>{kw.word}</span>
+                        <span style={{
+                          fontSize: 10,
+                          fontFamily: "monospace",
+                          color: isTop3 ? "#22d3ee" : "rgba(255,255,255,0.3)",
+                        }}>{kw.count}×</span>
+                      </div>
+                      <div style={{
+                        height: 5,
+                        borderRadius: 3,
+                        background: "rgba(255,255,255,0.05)",
+                        overflow: "hidden",
+                      }}>
+                        <div style={{
+                          height: "100%",
+                          width: `${barPct}%`,
+                          borderRadius: 3,
+                          background: isTop3
+                            ? "linear-gradient(to right, #7c3aed, #06b6d4)"
+                            : "rgba(255,255,255,0.15)",
+                          boxShadow: isTop3 ? "0 0 8px rgba(6,182,212,0.3)" : "none",
+                          transition: "width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)",
+                        }} />
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
             </div>
           </div>
         </div>
