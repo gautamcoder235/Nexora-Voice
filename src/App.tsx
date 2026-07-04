@@ -646,12 +646,6 @@ function App() {
 
   return (
     <div className="app-shell" style={{ display: "flex", flexDirection: "column", height: "100vh", overflow: "hidden" }}>
-      {/* Moving Ambient Glow Orbs */}
-      <div className="bg-glow-container">
-        <div className="bg-glow bg-cyan" />
-        <div className="bg-glow bg-purple" />
-        <div className="bg-glow bg-indigo" />
-      </div>
       <TitleBar />
       <div style={{ display: "flex", flexGrow: 1, height: "calc(100vh - 30px)", overflow: "hidden" }}>
         

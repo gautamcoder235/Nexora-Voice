@@ -95,7 +95,7 @@ body {
   inset: 0;
   z-index: 0;
   background-image:
-    radial-gradient(circle, rgba(99,102,241,0.14) 1.2px, transparent 1.2px);
+    radial-gradient(circle, rgba(99,102,241,0.18) 1px, transparent 1px);
   background-size: 28px 28px;
   /* Vignette: fade the dots to nothing at the centre so they don't compete with content */
   mask-image: radial-gradient(
@@ -111,79 +111,12 @@ body {
     rgba(0,0,0,0.55) 100%
   );
   pointer-events: none;
-  animation: grid-drift 75s linear infinite;
 }
 
 /* Make sure real content sits above the pseudo-element layers */
 .app-shell > * {
   position: relative;
-  z-index: 2;
-}
-
-/* Ambient glow container and orbs */
-.bg-glow-container {
-  position: absolute;
-  inset: 0;
   z-index: 1;
-  pointer-events: none;
-  overflow: hidden;
-}
-
-.bg-glow {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(90px);
-  opacity: 0.85;
-}
-
-.bg-cyan {
-  top: -15%;
-  left: 5%;
-  width: 700px;
-  height: 700px;
-  background: radial-gradient(circle, rgba(6,182,212,0.12) 0%, transparent 70%);
-  animation: bg-orb-shift-1 30s ease-in-out infinite alternate;
-}
-
-.bg-purple {
-  bottom: -20%;
-  right: 5%;
-  width: 800px;
-  height: 800px;
-  background: radial-gradient(circle, rgba(168,85,247,0.09) 0%, transparent 70%);
-  animation: bg-orb-shift-2 35s ease-in-out infinite alternate;
-}
-
-.bg-indigo {
-  top: 30%;
-  left: 45%;
-  width: 600px;
-  height: 600px;
-  background: radial-gradient(circle, rgba(99,102,241,0.07) 0%, transparent 70%);
-  animation: bg-orb-shift-3 32s ease-in-out infinite alternate;
-}
-
-@keyframes bg-orb-shift-1 {
-  0% { transform: translate(0, 0) scale(1); }
-  50% { transform: translate(100px, 80px) scale(1.1); }
-  100% { transform: translate(-40px, 120px) scale(0.9); }
-}
-
-@keyframes bg-orb-shift-2 {
-  0% { transform: translate(0, 0) scale(1); }
-  50% { transform: translate(-80px, -100px) scale(0.9); }
-  100% { transform: translate(60px, 60px) scale(1.05); }
-}
-
-@keyframes bg-orb-shift-3 {
-  0% { transform: translate(0, 0) scale(0.95); }
-  50% { transform: translate(-120px, 60px) scale(1.05); }
-  100% { transform: translate(80px, -80px) scale(1); }
-}
-
-@keyframes grid-drift {
-  from { background-position: 0 0; }
-  to   { background-position: 56px 56px; }
 }
 
 @keyframes bg-drift {
