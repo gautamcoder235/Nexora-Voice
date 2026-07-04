@@ -60,7 +60,7 @@ pub async fn stop_recording(
 
     // 4. Transcribe using native whisper.cpp
     let start_time = std::time::Instant::now();
-    let transcription_res = whisper.transcribe(&samples, settings.filter_hallucinations);
+    let transcription_res = whisper.transcribe(&samples, settings.filter_hallucinations, &settings.whisper_language);
     let elapsed_ms = start_time.elapsed().as_millis() as u32;
 
     // Handle transcription output

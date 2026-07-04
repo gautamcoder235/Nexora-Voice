@@ -17,7 +17,8 @@ import {
   Mic,
   Zap,
   LogOut,
-  ChevronDown
+  ChevronDown,
+  Globe
 } from "lucide-react";
 
 interface AppSettings {
@@ -32,6 +33,7 @@ interface AppSettings {
   streaming_mode: boolean;
   filter_hallucinations: boolean;
   mic_device?: string;
+  whisper_language?: string;
 }
 
 interface ModelStatus {
@@ -287,7 +289,8 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
     custom_instructions: "",
     streaming_mode: false,
     filter_hallucinations: true,
-    mic_device: "Default"
+    mic_device: "Default",
+    whisper_language: "auto"
   });
 
   const [originalSettings, setOriginalSettings] = useState<AppSettings | null>(null);
@@ -776,7 +779,7 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
                     <p className="input-help">Background chunk transcription gives near-instant results for long notes.</p>
                   </div>
  
-                  {/* AI Hallucination Filter */}
+                   {/* AI Hallucination Filter */}
                   <div className="input-group" style={{ gridColumn: "1 / -1" }}>
                     <label className="input-label">
                       <ShieldAlert className="h-4 w-4 text-cyan-400" />
@@ -791,6 +794,38 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
                       ]}
                     />
                     <p className="input-help">Whisper sometimes hallucinates song lyrics or "Thank you" during silence. Keep this enabled to automatically discard them.</p>
+                  </div>
+
+                  {/* Whisper Language Lock */}
+                  <div className="input-group" style={{ gridColumn: "1 / -1" }}>
+                    <label className="input-label">
+                      <Globe className="h-4 w-4 text-cyan-400" />
+                      <span>Transcription Language</span>
+                    </label>
+                    <CustomSelect
+                      value={settings.whisper_language ?? "auto"}
+                      onChange={(val) => {
+                        const updated = { ...settings, whisper_language: val };
+                        setSettings(updated);
+                        invoke("update_settings", { settings: updated }).catch(console.error);
+                      }}
+                      options={[
+                        { value: "auto", label: "Auto-detect (Default — no filter)" },
+                        { value: "en", label: "English" },
+                        { value: "hi", label: "Hindi" },
+                        { value: "es", label: "Spanish" },
+                        { value: "fr", label: "French" },
+                        { value: "de", label: "German" },
+                        { value: "zh", label: "Chinese (Mandarin)" },
+                        { value: "ja", label: "Japanese" },
+                        { value: "ko", label: "Korean" },
+                        { value: "pt", label: "Portuguese" },
+                        { value: "ru", label: "Russian" },
+                        { value: "ar", label: "Arabic" },
+                        { value: "it", label: "Italian" },
+                      ]}
+                    />
+                    <p className="input-help">Locking to a specific language speeds up transcription by ~15–20% and eliminates cross-language hallucinations. Leave on Auto-detect for multilingual environments.</p>
                   </div>
                 </div>
               </div>

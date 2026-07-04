@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { Keyboard } from "lucide-react";
+import { Keyboard, AlertTriangle, CheckCircle } from "lucide-react";
 
 interface HotkeyCaptureProps {
   value: string;
@@ -9,12 +9,52 @@ interface HotkeyCaptureProps {
 
 const MODIFIER_KEYS = new Set(["Control", "Alt", "Shift", "Meta", "OS"]);
 
+// Windows system-reserved or commonly-clashing shortcuts
+// Format matches the internal "Control+Alt+V" style
+const SYSTEM_CONFLICTS: Record<string, string> = {
+  "Control+C": "Copy (System)",
+  "Control+V": "Paste (System)",
+  "Control+X": "Cut (System)",
+  "Control+Z": "Undo (System)",
+  "Control+Y": "Redo (System)",
+  "Control+A": "Select All (System)",
+  "Control+S": "Save (System)",
+  "Control+P": "Print (System)",
+  "Control+F": "Find (System)",
+  "Control+W": "Close Tab (System)",
+  "Control+T": "New Tab (System)",
+  "Control+N": "New Window (System)",
+  "Control+Shift+Escape": "Task Manager (System)",
+  "Control+Alt+Delete": "Windows Security (System)",
+  "Alt+F4": "Close Window (System)",
+  "Alt+Tab": "App Switcher (System)",
+  "Alt+Enter": "Properties (System)",
+  "Meta+L": "Lock PC (Windows)",
+  "Meta+D": "Show Desktop (Windows)",
+  "Meta+E": "File Explorer (Windows)",
+  "Meta+R": "Run Dialog (Windows)",
+  "Meta+Tab": "Task View (Windows)",
+  "Escape": "Cancel / Dismiss (too generic)",
+  "F1": "Help (System)",
+  "F5": "Refresh (System)",
+};
+
+function detectConflict(hotkey: string): string | null {
+  return SYSTEM_CONFLICTS[hotkey] ?? null;
+}
+
 export const HotkeyCapture: React.FC<HotkeyCaptureProps> = ({ value, onChange, label }) => {
   const [isCapturing, setIsCapturing] = useState(false);
+  const [conflict, setConflict] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const parseKeys = (hotkey: string) =>
     hotkey ? hotkey.split("+").map((k) => k.trim()).filter(Boolean) : [];
+
+  // Re-check conflict whenever value changes externally too
+  useEffect(() => {
+    setConflict(value ? detectConflict(value) : null);
+  }, [value]);
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -23,7 +63,6 @@ export const HotkeyCapture: React.FC<HotkeyCaptureProps> = ({ value, onChange, l
 
       if (e.key === "Escape") {
         if (!e.ctrlKey && !e.altKey && !e.shiftKey && !e.metaKey) {
-          // If pure escape, just set escape if they want it
           onChange("Escape");
         }
         setIsCapturing(false);
@@ -45,7 +84,9 @@ export const HotkeyCapture: React.FC<HotkeyCaptureProps> = ({ value, onChange, l
       else if (key.length === 1) key = key.toUpperCase();
       parts.push(key);
 
-      onChange(parts.join("+"));
+      const hotkey = parts.join("+");
+      setConflict(detectConflict(hotkey));
+      onChange(hotkey);
       setIsCapturing(false);
     },
     [onChange]
@@ -94,15 +135,21 @@ export const HotkeyCapture: React.FC<HotkeyCaptureProps> = ({ value, onChange, l
           borderRadius: 10,
           border: isCapturing
             ? "1.5px solid rgba(34,211,238,0.8)"
+            : conflict
+            ? "1.5px solid rgba(251,191,36,0.7)"
             : "1.5px solid rgba(255,255,255,0.08)",
           background: isCapturing
             ? "rgba(34,211,238,0.06)"
+            : conflict
+            ? "rgba(251,191,36,0.04)"
             : "rgba(255,255,255,0.03)",
           cursor: "pointer",
           outline: "none",
           transition: "border-color 0.2s, background 0.2s, box-shadow 0.2s",
           boxShadow: isCapturing
             ? "0 0 0 3px rgba(34,211,238,0.18), 0 0 16px rgba(34,211,238,0.12)"
+            : conflict
+            ? "0 0 0 3px rgba(251,191,36,0.1)"
             : "none",
           flexWrap: "wrap",
           position: "relative",
@@ -188,6 +235,31 @@ export const HotkeyCapture: React.FC<HotkeyCaptureProps> = ({ value, onChange, l
           </>
         )}
       </div>
+
+      {/* Conflict / OK badge shown after capture */}
+      {!isCapturing && value && (
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          marginTop: 6,
+          fontSize: 11,
+          fontWeight: 600,
+          color: conflict ? "#fbbf24" : "#10b981",
+          animation: "fadeInPermission 0.2s ease",
+        }}>
+          {conflict
+            ? <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" />
+            : <CheckCircle className="h-3.5 w-3.5 flex-shrink-0" />
+          }
+          <span>
+            {conflict
+              ? `⚠ Conflicts with: ${conflict}`
+              : "✓ No conflicts detected"
+            }
+          </span>
+        </div>
+      )}
     </div>
   );
 };

@@ -95,6 +95,10 @@ pub fn run() {
             let tray_menu = Menu::with_items(&app_handle, &[
                 &MenuItem::with_id(&app_handle, "open", "Open Nexora Voice", true, None::<&str>)?,
                 &MenuItem::with_id(&app_handle, "settings", "Show Settings", true, None::<&str>)?,
+                &MenuItem::with_id(&app_handle, "separator1", "─────────────────", false, None::<&str>)?,
+                &MenuItem::with_id(&app_handle, "fmt_plain", "Format: Plain text", true, None::<&str>)?,
+                &MenuItem::with_id(&app_handle, "fmt_camel", "Format: camelCase", true, None::<&str>)?,
+                &MenuItem::with_id(&app_handle, "fmt_snake", "Format: snake_case", true, None::<&str>)?,
                 &MenuItem::with_id(&app_handle, "quit", "Quit Nexora Voice", true, None::<&str>)?,
             ])?;
 
@@ -118,6 +122,18 @@ pub fn run() {
                                 let _ = win.set_focus();
                                 let _ = win.emit("open-settings", ());
                             }
+                        }
+                        "fmt_plain" | "fmt_camel" | "fmt_snake" => {
+                            let new_mode = match event.id.as_ref() {
+                                "fmt_plain" => "plain",
+                                "fmt_camel" => "camelCase",
+                                "fmt_snake" => "snake_case",
+                                _ => "plain",
+                            };
+                            let mut s = crate::settings::load_settings(&app_h);
+                            s.format_mode = new_mode.to_string();
+                            crate::settings::save_settings(&app_h, &s);
+                            let _ = app_h.emit("settings-changed", &s.format_mode);
                         }
                         "quit" => {
                             app_h.exit(0);
@@ -236,7 +252,7 @@ pub fn run() {
                                             let chunked_recorder_api = app_h_api.state::<ChunkedRecorder>();
                                             
                                             // Process directly from RAM!
-                                            match whisper.transcribe(&chunk_samples, settings.filter_hallucinations) {
+                                            match whisper.transcribe(&chunk_samples, settings.filter_hallucinations, &settings.whisper_language) {
                                                 Ok(text) => {
                                                     if !text.is_empty() {
                                                         chunked_recorder_api.add_partial(idx, text);
@@ -276,7 +292,7 @@ pub fn run() {
 
                                 // Transcribe remaining tail audio directly from RAM
                                 if remaining.len() >= 1600 {
-                                    match whisper.transcribe(&remaining, settings.filter_hallucinations) {
+                                    match whisper.transcribe(&remaining, settings.filter_hallucinations, &settings.whisper_language) {
                                         Ok(text) => {
                                             if !text.is_empty() {
                                                 partials.push((tail_idx, text));

@@ -44,7 +44,7 @@ impl WhisperService {
         Ok(())
     }
 
-    pub fn transcribe(&self, samples: &[f32], filter_hallucinations: bool) -> Result<String, String> {
+    pub fn transcribe(&self, samples: &[f32], filter_hallucinations: bool, language: &str) -> Result<String, String> {
         let context_lock = self.context.lock().unwrap();
         
         let ctx = context_lock.as_ref().ok_or("No model loaded")?;
@@ -56,7 +56,12 @@ impl WhisperService {
         params.set_print_special(false);
         params.set_print_realtime(false);
         params.set_print_timestamps(false);
-        params.set_language(Some("en"));
+        // Use user-chosen language or fall back to auto-detect
+        if language == "auto" || language.is_empty() {
+            params.set_language(None);
+        } else {
+            params.set_language(Some(language));
+        }
         
         // Maximize CPU threads for fastest possible transcription
         if let Ok(threads) = std::thread::available_parallelism() {

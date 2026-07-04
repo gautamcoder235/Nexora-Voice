@@ -19,6 +19,7 @@ pub struct AppSettings {
     pub streaming_mode: bool,
     pub filter_hallucinations: bool,
     pub mic_device: String,
+    pub whisper_language: String,
 }
 
 impl Default for AppSettings {
@@ -35,6 +36,7 @@ impl Default for AppSettings {
             streaming_mode: false,
             filter_hallucinations: true,
             mic_device: "Default".to_string(),
+            whisper_language: "auto".to_string(),
         }
     }
 }

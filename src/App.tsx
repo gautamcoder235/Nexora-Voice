@@ -412,8 +412,20 @@ function App() {
           />
           
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>
-              {customInstructions.length} characters
+            <span style={{
+              fontSize: 10,
+              fontFamily: "monospace",
+              fontWeight: customInstructions.length >= 400 ? 700 : 400,
+              color: customInstructions.length >= 500
+                ? "#ef4444"
+                : customInstructions.length >= 400
+                ? "#f59e0b"
+                : "rgba(255,255,255,0.3)",
+              transition: "color 0.2s"
+            }}>
+              {customInstructions.length} / 500 chars
+              {customInstructions.length >= 500 && " — limit reached"}
+              {customInstructions.length >= 400 && customInstructions.length < 500 && " — approaching limit"}
             </span>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               {saveSuccess && (
