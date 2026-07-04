@@ -237,6 +237,8 @@ pub fn run() {
 
                             // Spawn background timer to drain chunks every 5s
                             let app_h_loop = app_h.clone();
+                            let loop_lang = settings.whisper_language.clone();
+                            let loop_filter = settings.filter_hallucinations;
                             tauri::async_runtime::spawn(async move {
                                 loop {
                                     tokio::time::sleep(std::time::Duration::from_secs(5)).await;
@@ -246,13 +248,14 @@ pub fn run() {
 
                                     if let Some((chunk_samples, idx)) = app_h_loop.state::<ChunkedRecorder>().drain_chunk() {
                                         let app_h_api = app_h_loop.clone();
+                                        let lang = loop_lang.clone();
 
                                         tauri::async_runtime::spawn(async move {
                                             let whisper = app_h_api.state::<WhisperService>();
                                             let chunked_recorder_api = app_h_api.state::<ChunkedRecorder>();
                                             
                                             // Process directly from RAM!
-                                            match whisper.transcribe(&chunk_samples, settings.filter_hallucinations, &settings.whisper_language) {
+                                            match whisper.transcribe(&chunk_samples, loop_filter, &lang) {
                                                 Ok(text) => {
                                                     if !text.is_empty() {
                                                         chunked_recorder_api.add_partial(idx, text);
