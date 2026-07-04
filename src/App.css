@@ -1035,8 +1035,21 @@ body {
 
 @media (max-width: 1024px) {
   .dictionary-grid {
-    grid-template-columns: 1fr !important;
+    display: flex !important;
+    flex-direction: column !important;
     overflow-y: auto !important;
+    gap: 16px !important;
+  }
+  
+  .add-rule-panel {
+    order: 1 !important;
+    flex-shrink: 0 !important;
+  }
+  
+  .active-rules-panel {
+    order: 2 !important;
+    flex-grow: 1 !important;
+    min-height: 280px !important;
   }
 }
 
