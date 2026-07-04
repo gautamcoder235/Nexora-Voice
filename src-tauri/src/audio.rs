@@ -42,10 +42,17 @@ impl AudioRecorder {
         state.is_recording = true;
 
         // Setup cpal input stream
+        let settings = crate::settings::load_settings(&app_handle);
         let host = cpal::default_host();
-        let device = host
-            .default_input_device()
-            .ok_or_else(|| "No default microphone input device found".to_string())?;
+        let device = if settings.mic_device.is_empty() || settings.mic_device == "Default" {
+            host.default_input_device()
+        } else {
+            host.input_devices()
+                .map_err(|e| e.to_string())?
+                .into_iter()
+                .find(|d| d.name().map(|n| n == settings.mic_device).unwrap_or(false))
+                .or_else(|| host.default_input_device())
+        }.ok_or_else(|| "No input device found".to_string())?;
 
         let config = device
             .default_input_config()

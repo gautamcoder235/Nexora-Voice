@@ -16,7 +16,8 @@ import {
   FolderOpen,
   Mic,
   Zap,
-  LogOut
+  LogOut,
+  ChevronDown
 } from "lucide-react";
 
 interface AppSettings {
@@ -30,6 +31,7 @@ interface AppSettings {
   custom_instructions: string;
   streaming_mode: boolean;
   filter_hallucinations: boolean;
+  mic_device?: string;
 }
 
 interface ModelStatus {
@@ -46,8 +48,134 @@ interface SettingsDashboardProps {
 
 // HotkeyCapture has been extracted and moved to the shortcuts tab
 
+interface CustomSelectOption {
+  value: string;
+  label: string;
+}
+
+interface CustomSelectProps {
+  value: string;
+  onChange: (val: string) => void;
+  options: CustomSelectOption[];
+}
+
+const CustomSelect: React.FC<CustomSelectProps> = ({ value, onChange, options }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, []);
+
+  const selectedOption = options.find(o => o.value === value) || options[0];
+
+  return (
+    <div ref={containerRef} style={{ position: "relative", width: "100%" }}>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          width: "100%",
+          padding: "10px 14px",
+          background: "rgba(255, 255, 255, 0.02)",
+          border: "1px solid rgba(6, 182, 212, 0.2)",
+          borderRadius: "12px",
+          color: "#fff",
+          fontSize: "13px",
+          textAlign: "left",
+          cursor: "pointer",
+          outline: "none",
+          boxShadow: "inset 0 1px 1px rgba(255,255,255,0.05)",
+          transition: "border-color 0.2s, box-shadow 0.2s"
+        }}
+        onFocus={(e) => e.currentTarget.style.borderColor = "#22d3ee"}
+        onBlur={(e) => e.currentTarget.style.borderColor = "rgba(6, 182, 212, 0.2)"}
+      >
+        <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+          {selectedOption ? selectedOption.label : ""}
+        </span>
+        <ChevronDown 
+          className="h-4 w-4" 
+          style={{ 
+            color: "rgba(255,255,255,0.4)", 
+            transform: isOpen ? "rotate(180deg)" : "none",
+            transition: "transform 0.2s ease" 
+          }} 
+        />
+      </button>
+      
+      {isOpen && (
+        <div style={{
+          position: "absolute",
+          top: "calc(100% + 6px)",
+          left: 0,
+          width: "100%",
+          background: "#080c14",
+          border: "1px solid rgba(255, 255, 255, 0.08)",
+          borderRadius: "12px",
+          boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5)",
+          zIndex: 9999,
+          padding: "6px",
+          display: "flex",
+          flexDirection: "column",
+          gap: "2px",
+          maxHeight: "200px",
+          overflowY: "auto"
+        }}>
+          {options.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => {
+                onChange(opt.value);
+                setIsOpen(false);
+              }}
+              style={{
+                width: "100%",
+                padding: "8px 12px",
+                background: opt.value === value ? "rgba(6, 182, 212, 0.15)" : "transparent",
+                border: "none",
+                borderRadius: "8px",
+                color: opt.value === value ? "#22d3ee" : "rgba(255,255,255,0.8)",
+                fontSize: "12.5px",
+                textAlign: "left",
+                cursor: "pointer",
+                transition: "all 0.15s ease",
+                fontWeight: opt.value === value ? 600 : 400
+              }}
+              onMouseEnter={(e) => {
+                if (opt.value !== value) {
+                  e.currentTarget.style.background = "rgba(255, 255, 255, 0.04)";
+                  e.currentTarget.style.color = "#fff";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (opt.value !== value) {
+                  e.currentTarget.style.background = "transparent";
+                  e.currentTarget.style.color = "rgba(255,255,255,0.8)";
+                }
+              }}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // Live volume visualization bar for mic selection cards
-const MicVisualizer: React.FC<{ micName: string }> = ({ micName }) => {
+const MicVisualizer: React.FC<{ deviceId: string }> = ({ deviceId }) => {
   const [level, setLevel] = useState(0);
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
@@ -55,44 +183,13 @@ const MicVisualizer: React.FC<{ micName: string }> = ({ micName }) => {
   const rafRef = useRef<number | null>(null);
 
   useEffect(() => {
+    if (!deviceId) return;
     let isActive = true;
 
     const initAudio = async () => {
       try {
-        // 1. Request general microphone permission first to reveal device labels
-        let tempStream: MediaStream | null = null;
-        try {
-          tempStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        } catch (e) {
-          console.warn("Failed to obtain initial microphone permission:", e);
-          return;
-        }
-
-        // 2. Enumerate devices now that labels are populated
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        
-        // 3. Stop the temporary permission stream tracks so we don't lock the mic
-        tempStream.getTracks().forEach(t => t.stop());
-
-        if (!isActive) return;
-
-        const audioDevices = devices.filter(d => d.kind === "audioinput");
-        
-        // 4. Find matching device by name
-        const matched = audioDevices.find(d => {
-          const l = d.label.toLowerCase();
-          const m = micName.toLowerCase();
-          return l.includes(m) || m.includes(l);
-        });
-
-        if (!matched) {
-          console.warn(`No matching audio input device found for name: ${micName}`);
-          return;
-        }
-
-        // 5. Open the exact matching device
         const stream = await navigator.mediaDevices.getUserMedia({
-          audio: { deviceId: { exact: matched.deviceId } }
+          audio: { deviceId: { exact: deviceId } }
         });
 
         if (!isActive) {
@@ -113,6 +210,7 @@ const MicVisualizer: React.FC<{ micName: string }> = ({ micName }) => {
 
         const bufferLength = analyser.frequencyBinCount;
         const dataArray = new Uint8Array(bufferLength);
+        let currentLevel = 0;
 
         const draw = () => {
           if (!isActive || !analyserRef.current) return;
@@ -124,8 +222,11 @@ const MicVisualizer: React.FC<{ micName: string }> = ({ micName }) => {
           }
           const avg = sum / bufferLength;
           // Normalize & scale to visually represent speech sensitivity
-          const norm = Math.min(avg / 140, 1.0);
-          setLevel(norm);
+          const targetLevel = Math.min(avg / 140, 1.0);
+          
+          // Apply exponential smoothing (LERP) for visual fluidity
+          currentLevel = currentLevel * 0.75 + targetLevel * 0.25;
+          setLevel(currentLevel);
 
           rafRef.current = requestAnimationFrame(draw);
         };
@@ -147,7 +248,7 @@ const MicVisualizer: React.FC<{ micName: string }> = ({ micName }) => {
         audioContextRef.current.close();
       }
     };
-  }, [micName]);
+  }, [deviceId]);
 
   return (
     <div style={{
@@ -162,10 +263,10 @@ const MicVisualizer: React.FC<{ micName: string }> = ({ micName }) => {
     }}>
       <div style={{
         height: "100%",
-        width: `${Math.max(level * 100, 1.5)}%`,
+        width: `${level * 100}%`,
         background: "linear-gradient(90deg, #10b981 0%, #22d3ee 100%)",
         boxShadow: level > 0.05 ? "0 0 6px #10b981" : "none",
-        transition: "width 0.06s ease"
+        transition: "none"
       }} />
     </div>
   );
@@ -185,7 +286,8 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
     injection_method: "paste",
     custom_instructions: "",
     streaming_mode: false,
-    filter_hallucinations: true
+    filter_hallucinations: true,
+    mic_device: "Default"
   });
 
   const [originalSettings, setOriginalSettings] = useState<AppSettings | null>(null);
@@ -214,6 +316,29 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
   const [microphones, setMicrophones] = useState<string[]>([]);
   const [selectedMic, setSelectedMic] = useState<string>("");
   const [micPermissionState, setMicPermissionState] = useState<"granted" | "prompt" | "denied">("prompt");
+  const [micDeviceIds, setMicDeviceIds] = useState<Record<string, string>>({});
+  
+  const resolveMicDeviceIds = async (micsList: string[]) => {
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const audioDevices = devices.filter(d => d.kind === "audioinput");
+      const mapping: Record<string, string> = {};
+      
+      for (const micName of micsList) {
+        const matched = audioDevices.find(d => {
+          const l = d.label.toLowerCase();
+          const m = micName.toLowerCase();
+          return l.includes(m) || m.includes(l);
+        });
+        if (matched) {
+          mapping[micName] = matched.deviceId;
+        }
+      }
+      setMicDeviceIds(mapping);
+    } catch (e) {
+      console.warn("Failed to resolve browser device IDs:", e);
+    }
+  };
   
   const [activeTab, setActiveTab] = useState<"general" | "models" | "mic" | "history">("general");
 
@@ -230,8 +355,9 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
       const s = await invoke<AppSettings>("get_settings");
       setSettings(s);
       setOriginalSettings(s);
-
-
+      if (s.mic_device) {
+        setSelectedMic(s.mic_device);
+      }
 
       // Get models directory path
       try {
@@ -245,7 +371,10 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
       try {
         const mics = await invoke<string[]>("list_microphones");
         setMicrophones(mics);
-        if (mics.length > 0 && !selectedMic) setSelectedMic(mics[0]);
+        if (mics.length > 0) {
+          setSelectedMic(s.mic_device || mics[0]);
+        }
+        resolveMicDeviceIds(mics);
       } catch (e) { console.warn("Mic listing unavailable", e); }
 
       // Models status needs the backend — retry with backoff
@@ -293,6 +422,7 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
       try {
         const mics = await invoke<string[]>("list_microphones");
         setMicrophones(mics);
+        resolveMicDeviceIds(mics);
       } catch (e) { console.warn("Mic reload failed", e); }
     } catch (e) {
       console.warn("Microphone permission denied:", e);
@@ -335,6 +465,12 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
     };
   }, []);
 
+  useEffect(() => {
+    if (micPermissionState === "granted" && microphones.length > 0) {
+      resolveMicDeviceIds(microphones);
+    }
+  }, [micPermissionState, microphones]);
+
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
@@ -354,6 +490,15 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
 
 
 
+  const autoSaveSettings = async (updatedSettings: AppSettings) => {
+    try {
+      await invoke("update_settings", { settings: updatedSettings });
+      setOriginalSettings(updatedSettings);
+    } catch (err) {
+      console.warn("Failed to auto-save settings:", err);
+    }
+  };
+
   const handleLoadOrDownloadModel = async (modelKey: string) => {
     setLoadingModelKey(modelKey);
     setDownloadProgress(0);
@@ -363,8 +508,10 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
       // Trigger switch_backend_model (which auto-downloads if not cached)
       await invoke("switch_backend_model", { modelSize: modelKey });
       
-      // Update local settings state
-      setSettings(prev => ({ ...prev, model_size: modelKey }));
+      // Update local settings state and save directly
+      const updated = { ...settings, model_size: modelKey };
+      setSettings(updated);
+      await autoSaveSettings(updated);
       
       // Emit event so other dashboard components sync immediately
       await emit("model-changed", modelKey);
@@ -554,17 +701,17 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
                       <Sliders className="h-4 w-4 text-cyan-400" />
                       <span>Automatic Case Formatting</span>
                     </label>
-                    <select
+                    <CustomSelect
                       value={settings.format_mode}
-                      onChange={(e) => setSettings({ ...settings, format_mode: e.target.value })}
-                      className="glass-select"
-                    >
-                      <option value="none">Plain Output (No adjustments)</option>
-                      <option value="camel">camelCase (variables)</option>
-                      <option value="snake">snake_case (database/files)</option>
-                      <option value="pascal">PascalCase (classes/components)</option>
-                      <option value="upper">UPPERCASE (shouting/SQL)</option>
-                    </select>
+                      onChange={(val) => setSettings({ ...settings, format_mode: val })}
+                      options={[
+                        { value: "none", label: "Plain Output (No adjustments)" },
+                        { value: "camel", label: "camelCase (variables)" },
+                        { value: "snake", label: "snake_case (database/files)" },
+                        { value: "pascal", label: "PascalCase (classes/components)" },
+                        { value: "upper", label: "UPPERCASE (shouting/SQL)" }
+                      ]}
+                    />
                     <p className="input-help">Dictating "first name" auto-formats text (e.g. firstName, first_name).</p>
                   </div>
                 </div>
@@ -601,48 +748,48 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
                       <Sliders className="h-4 w-4 text-cyan-400" />
                       <span>Active Cursor Injection Method</span>
                     </label>
-                    <select
+                    <CustomSelect
                       value={settings.injection_method}
-                      onChange={(e) => setSettings({ ...settings, injection_method: e.target.value })}
-                      className="glass-select"
-                    >
-                      <option value="paste">Clipboard Paste (Instant &amp; Safe)</option>
-                      <option value="type">Virtual Key Typing (Compatible with consoles)</option>
-                    </select>
+                      onChange={(val) => setSettings({ ...settings, injection_method: val })}
+                      options={[
+                        { value: "paste", label: "Clipboard Paste (Instant & Safe)" },
+                        { value: "type", label: "Virtual Key Typing (Compatible with consoles)" }
+                      ]}
+                    />
                     <p className="input-help">Pasting is recommended for long transcripts. Typing is compatible everywhere.</p>
                   </div>
-
+ 
                   {/* Real-time Streaming Mode Selection */}
                   <div className="input-group">
                     <label className="input-label">
                       <Zap className="h-4 w-4 text-cyan-400" />
                       <span>Real-time Streaming Mode</span>
                     </label>
-                    <select
+                    <CustomSelect
                       value={settings.streaming_mode ? "true" : "false"}
-                      onChange={(e) => setSettings({ ...settings, streaming_mode: e.target.value === "true" })}
-                      className="glass-select"
-                    >
-                      <option value="false">Standard Mode (For &lt; 30s quick dictation)</option>
-                      <option value="true">Streaming Mode (For long recording, instant results)</option>
-                    </select>
+                      onChange={(val) => setSettings({ ...settings, streaming_mode: val === "true" })}
+                      options={[
+                        { value: "false", label: "Standard Mode (For < 30s quick dictation)" },
+                        { value: "true", label: "Streaming Mode (For long recording, instant results)" }
+                      ]}
+                    />
                     <p className="input-help">Background chunk transcription gives near-instant results for long notes.</p>
                   </div>
-
+ 
                   {/* AI Hallucination Filter */}
                   <div className="input-group" style={{ gridColumn: "1 / -1" }}>
                     <label className="input-label">
                       <ShieldAlert className="h-4 w-4 text-cyan-400" />
                       <span>AI Hallucination Filter</span>
                     </label>
-                    <select
+                    <CustomSelect
                       value={settings.filter_hallucinations ? "true" : "false"}
-                      onChange={(e) => setSettings({ ...settings, filter_hallucinations: e.target.value === "true" })}
-                      className="glass-select"
-                    >
-                      <option value="true">Enabled (Strips musical notes & subtitle watermarks)</option>
-                      <option value="false">Disabled (Raw AI output)</option>
-                    </select>
+                      onChange={(val) => setSettings({ ...settings, filter_hallucinations: val === "true" })}
+                      options={[
+                        { value: "true", label: "Enabled (Strips musical notes & subtitle watermarks)" },
+                        { value: "false", label: "Disabled (Raw AI output)" }
+                      ]}
+                    />
                     <p className="input-help">Whisper sometimes hallucinates song lyrics or "Thank you" during silence. Keep this enabled to automatically discard them.</p>
                   </div>
                 </div>
@@ -807,7 +954,12 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
                     <button
                       key={idx}
                       className={`model-card-item ${selectedMic === mic ? "active-border" : ""}`}
-                      onClick={() => setSelectedMic(mic)}
+                      onClick={() => {
+                        setSelectedMic(mic);
+                        const updated = { ...settings, mic_device: mic };
+                        setSettings(updated);
+                        autoSaveSettings(updated);
+                      }}
                       style={{ 
                         cursor: "pointer", 
                         textAlign: "left", 
@@ -835,8 +987,8 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
                           <div className="btn-glass" style={{ pointerEvents: "none" }}>Select</div>
                         )}
                       </div>
-                      {/* Live reacting voice bar (only render when permission is granted) */}
-                      {micPermissionState === "granted" && <MicVisualizer micName={mic} />}
+                      {/* Live reacting voice bar (render for all input devices using pre-resolved IDs) */}
+                      {micPermissionState === "granted" && micDeviceIds[mic] && <MicVisualizer deviceId={micDeviceIds[mic]} />}
                     </button>
                   ))
                 )}

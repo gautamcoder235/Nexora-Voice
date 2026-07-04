@@ -4,7 +4,6 @@ mod commands;
 mod history;
 mod injector;
 mod settings;
-mod tts;
 pub mod whisper_service;
 pub mod model_manager;
 
@@ -377,9 +376,6 @@ pub fn run() {
             commands::list_microphones,
             commands::get_history,
             commands::clear_history,
-            tts::generate_tts_audio,
-            tts::get_tts_history,
-            tts::clear_tts_history,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

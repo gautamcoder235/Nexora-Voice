@@ -18,6 +18,7 @@ pub struct AppSettings {
     pub custom_instructions: String,
     pub streaming_mode: bool,
     pub filter_hallucinations: bool,
+    pub mic_device: String,
 }
 
 impl Default for AppSettings {
@@ -33,6 +34,7 @@ impl Default for AppSettings {
             custom_instructions: "".to_string(),
             streaming_mode: false,
             filter_hallucinations: true,
+            mic_device: "Default".to_string(),
         }
     }
 }

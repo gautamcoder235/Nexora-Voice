@@ -675,7 +675,7 @@ function App() {
             flexDirection: "column",
           }}
         >
-          {activeTab === "overview" && <OverviewDashboard />}
+           {activeTab === "overview" && <OverviewDashboard />}
           {activeTab === "history" && <HistoryView />}
           {activeTab === "dictionary" && renderDictionaryView()}
           {activeTab === "instructions" && renderInstructionsView()}
