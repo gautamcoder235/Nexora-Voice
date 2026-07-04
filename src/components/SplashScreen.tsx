@@ -1,1201 +1,481 @@
-import React, { useEffect, useState, useRef, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 
 interface SplashScreenProps {
   onDone: () => void;
 }
 
-const LOADING_STEPS = [
-  "Initializing audio engine...",
-  "Loading Whisper runtime...",
-  "Preparing voice pipeline...",
-  "Loading AI models...",
-  "Optimizing inference...",
-  "Preparing Text-to-Speech...",
-  "Almost ready...",
-  "Ready",
+// Loading steps shown sequentially under the progress bar
+const STEPS = [
+  "Initialising audio engine…",
+  "Loading Whisper runtime…",
+  "Connecting to local backend…",
+  "Warming up inference pipeline…",
+  "Ready.",
 ];
 
-const STREAM_WORDS = [
-  "Hello",
-  "Voice",
-  "AI",
-  "Offline",
-  "Private",
-  "Whisper",
-  "Speech",
-  "Text",
-  "Natural",
-  "Fast",
-];
-
-const PARTICLES = Array.from({ length: 18 }, (_, i) => ({
+// Floating particle positions (static seed so they don't shift on re-render)
+const PARTICLES = Array.from({ length: 35 }, (_, i) => ({
   id: i,
-  x: Math.random() * 100,
-  y: Math.random() * 100,
-  size: 2 + Math.random() * 4,
-  duration: 8 + Math.random() * 6,
-  delay: Math.random() * 5,
+  x: (i * 37 + 11) % 100,
+  y: (i * 53 + 7)  % 100,
+  size: 1.0 + (i % 5) * 0.5,
+  delay: (i * 0.14) % 5,
+  dur: 3 + (i % 6),
+  opacity: 0.08 + (i % 5) * 0.05,
 }));
 
+// Animated equaliser bar heights
+const WAVE_HEIGHTS = [6, 14, 22, 30, 38, 44, 38, 30, 22, 14, 6, 14, 22, 30, 38, 44, 38, 30];
+
 export const SplashScreen: React.FC<SplashScreenProps> = ({ onDone }) => {
-  const [progress, setProgress] = useState(0);
-  const [step, setStep] = useState(0);
-
-  const [showLogo, setShowLogo] = useState(false);
-  const [showTitle, setShowTitle] = useState(false);
-  const [showStream, setShowStream] = useState(false);
-  const [showProgress, setShowProgress] = useState(false);
-  const [closing, setClosing] = useState(false);
-
-  const raf = useRef<number>();
+  const [progress,   setProgress]   = useState(0);
+  const [stepIdx,    setStepIdx]    = useState(0);
+  const [exiting,    setExiting]    = useState(false);
+  const [logoReady,  setLogoReady]  = useState(false);
+  const [textReady,  setTextReady]  = useState(false);
+  const [barReady,   setBarReady]   = useState(false);
+  const [ringsReady, setRingsReady] = useState(false);
+  const [waveReady,  setWaveReady]  = useState(false);
+  const rafRef = useRef(0);
 
   const finish = useCallback(() => {
-    setClosing(true);
-
-    setTimeout(() => {
-      onDone();
-    }, 650);
+    setExiting(true);
+    setTimeout(onDone, 750);
   }, [onDone]);
 
+  // Staggered element reveals — more cinematic timing
   useEffect(() => {
-    const t1 = setTimeout(() => setShowLogo(true), 180);
-    const t2 = setTimeout(() => setShowTitle(true), 500);
-    const t3 = setTimeout(() => setShowStream(true), 900);
-    const t4 = setTimeout(() => setShowProgress(true), 1000);
-
-    return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-      clearTimeout(t3);
-      clearTimeout(t4);
-    };
+    const t0 = setTimeout(() => setRingsReady(true), 50);
+    const t1 = setTimeout(() => setLogoReady(true),  200);
+    const t2 = setTimeout(() => setTextReady(true),  550);
+    const t3 = setTimeout(() => setWaveReady(true),  750);
+    const t4 = setTimeout(() => setBarReady(true),   900);
+    return () => { clearTimeout(t0); clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearTimeout(t4); };
   }, []);
 
+  // Progress + step cycling
   useEffect(() => {
-    const start = performance.now();
-    const duration = 4200;
+    const startMs = performance.now();
+    const fillMs  = 2800;
 
-    const animate = (time: number) => {
-      const p = Math.min(
-        ((time - start) / duration) * 100,
-        100
-      );
+    const tick = (now: number) => {
+      const pct = Math.min(((now - startMs) / fillMs) * 100, 100);
+      setProgress(pct);
 
-      setProgress(p);
+      // Advance step label at each 20% increment
+      const newStep = Math.min(Math.floor(pct / 20), STEPS.length - 1);
+      setStepIdx(newStep);
 
-      const idx = Math.min(
-        Math.floor((p / 100) * LOADING_STEPS.length),
-        LOADING_STEPS.length - 1
-      );
-
-      setStep(idx);
-
-      if (p < 100) {
-        raf.current = requestAnimationFrame(animate);
+      if (pct < 100) {
+        rafRef.current = requestAnimationFrame(tick);
       } else {
-        setTimeout(finish, 500);
+        setTimeout(finish, 400);
       }
     };
 
-    raf.current = requestAnimationFrame(animate);
-
-    return () => {
-      if (raf.current) cancelAnimationFrame(raf.current);
-    };
+    rafRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafRef.current);
   }, [finish]);
 
   return (
-    <div
-      className={`nv-splash ${closing ? "closing" : ""}`}
-    >
-      {/* Background */}
+    <div style={{
+      position       : "fixed",
+      inset          : 0,
+      zIndex         : 9999,
+      display        : "flex",
+      flexDirection  : "column",
+      alignItems     : "center",
+      justifyContent : "center",
+      background     : "#020408",
+      overflow       : "hidden",
+      userSelect     : "none",
+      opacity        : exiting ? 0 : 1,
+      transform      : exiting ? "scale(1.04)" : "scale(1)",
+      transition     : exiting ? "opacity 0.75s cubic-bezier(0.4,0,1,1), transform 0.75s cubic-bezier(0.4,0,1,1)" : "none",
+    }}>
 
-      <div className="nv-bg">
-        <div className="nv-glow nv-glow-a" />
-        <div className="nv-glow nv-glow-b" />
+      {/* ── Subtle grid texture ─────────────────────────────────── */}
+      <div style={{
+        position        : "absolute",
+        inset           : 0,
+        backgroundImage : "linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px)",
+        backgroundSize  : "60px 60px",
+        maskImage       : "radial-gradient(ellipse 80% 80% at 50% 50%, black 30%, transparent 100%)",
+        WebkitMaskImage : "radial-gradient(ellipse 80% 80% at 50% 50%, black 30%, transparent 100%)",
+        pointerEvents   : "none",
+        animation       : "grid-drift 20s linear infinite",
+      }} />
 
-        <div className="nv-grid" />
+      {/* ── Ambient glow orbs ───────────────────────────────────── */}
+      <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
+        {/* Cyan top-left */}
+        <div style={{
+          position: "absolute", top: "-10%", left: "-5%",
+          width: 800, height: 800, borderRadius: "50%",
+          background: "radial-gradient(circle, rgba(6,182,212,0.12) 0%, transparent 60%)",
+          filter: "blur(60px)",
+          animation: "orb-a 9s ease-in-out infinite alternate",
+        }} />
+        {/* Violet bottom-right */}
+        <div style={{
+          position: "absolute", bottom: "-12%", right: "-8%",
+          width: 900, height: 900, borderRadius: "50%",
+          background: "radial-gradient(circle, rgba(139,92,246,0.10) 0%, transparent 60%)",
+          filter: "blur(70px)",
+          animation: "orb-b 11s ease-in-out infinite alternate",
+        }} />
+        {/* Indigo centre-bottom */}
+        <div style={{
+          position: "absolute", bottom: "10%", left: "35%",
+          width: 600, height: 400, borderRadius: "50%",
+          background: "radial-gradient(circle, rgba(99,102,241,0.08) 0%, transparent 65%)",
+          filter: "blur(50px)",
+          animation: "orb-c 7s ease-in-out infinite alternate",
+        }} />
+        {/* Warm accent top-right */}
+        <div style={{
+          position: "absolute", top: "15%", right: "10%",
+          width: 500, height: 500, borderRadius: "50%",
+          background: "radial-gradient(circle, rgba(236,72,153,0.05) 0%, transparent 60%)",
+          filter: "blur(80px)",
+          animation: "orb-a 13s 2s ease-in-out infinite alternate",
+        }} />
+      </div>
 
-        {PARTICLES.map((p) => (
-          <span
-            key={p.id}
-            className="nv-particle"
-            style={{
-              left: `${p.x}%`,
-              top: `${p.y}%`,
-              width: p.size,
-              height: p.size,
-              animationDuration: `${p.duration}s`,
-              animationDelay: `${p.delay}s`,
-            }}
-          />
+      {/* ── Floating particles ──────────────────────────────────── */}
+      <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
+        {PARTICLES.map(p => (
+          <div key={p.id} style={{
+            position     : "absolute",
+            left         : `${p.x}%`,
+            top          : `${p.y}%`,
+            width        : p.size,
+            height       : p.size,
+            borderRadius : "50%",
+            background   : p.id % 4 === 0 ? "#22d3ee" : p.id % 4 === 1 ? "#818cf8" : p.id % 4 === 2 ? "#a78bfa" : "#ec4899",
+            opacity      : p.opacity,
+            animation    : `float-${p.id % 3} ${p.dur}s ${p.delay}s ease-in-out infinite alternate`,
+          }} />
         ))}
       </div>
 
-      {/* Center */}
+      {/* ── Expanding ring burst on logo reveal ─────────────────── */}
+      <div style={{
+        position     : "absolute",
+        width        : 300,
+        height       : 300,
+        borderRadius : "50%",
+        border       : "1px solid rgba(6,182,212,0.3)",
+        opacity      : ringsReady ? 0 : 0.8,
+        transform    : ringsReady ? "scale(3)" : "scale(0.3)",
+        transition   : "transform 1.4s cubic-bezier(0.22,1,0.36,1), opacity 1.4s ease",
+        pointerEvents: "none",
+      }} />
+      <div style={{
+        position     : "absolute",
+        width        : 200,
+        height       : 200,
+        borderRadius : "50%",
+        border       : "1px solid rgba(99,102,241,0.25)",
+        opacity      : ringsReady ? 0 : 0.6,
+        transform    : ringsReady ? "scale(4)" : "scale(0.2)",
+        transition   : "transform 1.6s 0.1s cubic-bezier(0.22,1,0.36,1), opacity 1.6s 0.1s ease",
+        pointerEvents: "none",
+      }} />
 
-      <div className="nv-center">
+      {/* ── Logo mark with rings ─────────────────────────────────── */}
+      <div style={{
+        position      : "relative",
+        marginBottom  : 36,
+        opacity       : logoReady ? 1 : 0,
+        transform     : logoReady ? "scale(1) translateY(0)" : "scale(0.3) translateY(30px)",
+        transition    : "opacity 0.7s cubic-bezier(0.34,1.56,0.64,1), transform 0.7s cubic-bezier(0.34,1.56,0.64,1)",
+      }}>
+        {/* Outer pulsing ring */}
+        <div style={{
+          position     : "absolute",
+          inset        : -22,
+          borderRadius : "50%",
+          border       : "1px solid rgba(6,182,212,0.12)",
+          animation    : "ring-pulse 2.4s ease-in-out infinite",
+        }} />
+        {/* Middle ring */}
+        <div style={{
+          position     : "absolute",
+          inset        : -11,
+          borderRadius : "50%",
+          border       : "1px solid rgba(99,102,241,0.18)",
+          animation    : "ring-pulse 2.4s 0.4s ease-in-out infinite",
+        }} />
+        {/* Inner spinning ring */}
+        <div style={{
+          position     : "absolute",
+          inset        : -32,
+          borderRadius : "50%",
+          border       : "1px dashed rgba(6,182,212,0.08)",
+          animation    : "spin-slow 25s linear infinite",
+        }} />
 
-        {/* Anchor container for logo and text stream alignment */}
-        <div style={{ position: "relative", width: 120, height: 120 }}>
-          <div
-            className={`nv-logo-wrapper ${
-              showLogo ? "show" : ""
-            }`}
-          >
-            <div className="nv-ring ring-1" />
-            <div className="nv-ring ring-2" />
-            <div className="nv-ring ring-3" />
-
-            <div className="nv-logo">
-              <img src="/logo.jpg" alt="Nexora Voice Logo" style={{ width: "100%", height: "100%", objectFit: "cover", transform: "scale(1.22)" }} />
-            </div>
-
-          </div>
-
-          {/* Animated text flowing out of microphone */}
-          <div
-            className={`nv-stream ${
-              showStream ? "show" : ""
-            }`}
-            style={{
-              position: "absolute",
-              left: "0px", // Aligns perfectly to the left edge of the logo container
-              top: "0px",
-              width: "120px", // Bound to logo container dimensions
-              height: "120px",
-              pointerEvents: "none",
-            }}
-          >
-            {STREAM_WORDS.map((word, index) => (
-              <span
-                key={index}
-                className="nv-word"
-                style={{
-                  animationDelay: `${index * 0.45}s`,
-                }}
-              >
-                {word}
-              </span>
-            ))}
-
-            {/* glowing particles leaving the text */}
-            {Array.from({ length: 12 }).map((_, i) => (
-              <div
-                key={i}
-                className="nv-stream-particle"
-                style={{
-                  animationDelay: `${i * 0.22}s`,
-                }}
-              />
-            ))}
-          </div>
+        {/* Logo container */}
+        <div style={{
+          width           : 96,
+          height          : 96,
+          borderRadius    : 28,
+          border          : "1px solid rgba(255,255,255,0.12)",
+          boxShadow       : "0 0 0 1px rgba(6,182,212,0.08), 0 0 40px rgba(6,182,212,0.2), 0 0 80px rgba(99,102,241,0.14), inset 0 1px 0 rgba(255,255,255,0.1)",
+          backdropFilter  : "blur(20px)",
+          display         : "flex",
+          alignItems      : "center",
+          justifyContent  : "center",
+          animation       : "logo-breathe 3s ease-in-out infinite",
+          overflow        : "hidden",
+        }}>
+          <img src="/logo.jpg" alt="Nexora Voice Logo" style={{ width: "100%", height: "100%", objectFit: "cover", transform: "scale(1.35)" }} />
         </div>
-
-        <div
-          className={`nv-title ${
-            showTitle ? "show" : ""
-          }`}
-        >
-          <h1>Nexora Voice</h1>
-
-          <p>
-            Private • Offline • On-device AI
-          </p>
-        </div>
-
-        {/* Progress */}
-
-        <div
-          className={`nv-progress-container ${
-            showProgress ? "show" : ""
-          }`}
-        >
-          <div className="nv-progress-track">
-            <div
-              className="nv-progress-fill"
-              style={{
-                width: `${progress}%`,
-              }}
-            >
-              <div className="nv-progress-glow" />
-            </div>
-          </div>
-
-          <div className="nv-progress-info">
-            <span className="nv-step">
-              {LOADING_STEPS[step]}
-            </span>
-
-            <span className="nv-percent">
-              {Math.round(progress)}%
-            </span>
-          </div>
-        </div>
-
       </div>
 
-      {/* Ambient bottom light */}
+      {/* ── App name + tagline ───────────────────────────────────── */}
+      <div style={{
+        display       : "flex",
+        flexDirection : "column",
+        alignItems    : "center",
+        gap           : 12,
+        marginBottom  : 14,
+        opacity       : textReady ? 1 : 0,
+        transform     : textReady ? "translateY(0)" : "translateY(24px)",
+        transition    : "opacity 0.7s ease, transform 0.7s cubic-bezier(0.22,1,0.36,1)",
+      }}>
+        <h1 style={{
+          margin        : 0,
+          fontSize      : 44,
+          fontWeight    : 800,
+          fontFamily    : "'Outfit', 'Inter', system-ui, sans-serif",
+          letterSpacing : "-0.04em",
+          lineHeight    : 1,
+          background    : "linear-gradient(135deg, #ffffff 0%, #e2e8f0 20%, #22d3ee 50%, #818cf8 75%, #a78bfa 100%)",
+          WebkitBackgroundClip : "text",
+          WebkitTextFillColor  : "transparent",
+          backgroundClip       : "text",
+          backgroundSize       : "200% 200%",
+          animation            : "shimmer 3s linear infinite",
+          filter               : "drop-shadow(0 0 20px rgba(6,182,212,0.2))",
+        }}>
+          Nexora Voice
+        </h1>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          {["on-device", "offline", "private"].map((tag, i) => (
+            <React.Fragment key={tag}>
+              <span style={{
+                fontSize      : 10,
+                fontWeight    : 600,
+                fontFamily    : "'JetBrains Mono', monospace",
+                color         : "rgba(148,163,184,0.5)",
+                letterSpacing : "0.12em",
+                textTransform : "uppercase",
+                opacity       : textReady ? 1 : 0,
+                transform     : textReady ? "translateY(0)" : "translateY(8px)",
+                transition    : `opacity 0.4s ${0.6 + i * 0.12}s ease, transform 0.4s ${0.6 + i * 0.12}s ease`,
+              }}>{tag}</span>
+              {i < 2 && (
+                <span style={{ width: 3, height: 3, borderRadius: "50%", background: "rgba(255,255,255,0.15)" }} />
+              )}
+            </React.Fragment>
+          ))}
+        </div>
+      </div>
 
-      <div className="nv-bottom-glow" />
+      {/* ── Typing Text Simulation (representing Text-to-Speech) ── */}
+      <div style={{
+        height        : 40,
+        marginBottom  : 12,
+        display       : "flex",
+        alignItems    : "center",
+        justifyContent: "center",
+        opacity       : waveReady ? 0.9 : 0,
+        transform     : waveReady ? "translateY(0)" : "translateY(12px)",
+        transition    : "opacity 0.6s 0.1s ease, transform 0.6s 0.1s cubic-bezier(0.34,1.56,0.64,1)",
+      }}>
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          background: "rgba(255, 255, 255, 0.02)",
+          border: "1px solid rgba(255, 255, 255, 0.04)",
+          padding: "8px 16px",
+          borderRadius: 20,
+          boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.02)",
+          backdropFilter: "blur(8px)",
+        }}>
+          <span style={{
+            fontSize: 12,
+            fontFamily: "'JetBrains Mono', monospace",
+            color: "rgba(34, 211, 238, 0.95)",
+            textShadow: "0 0 8px rgba(6, 182, 212, 0.5)",
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            display: "inline-block",
+            animation: "typing-effect 3.5s steps(30, end) infinite",
+            maxWidth: "280px",
+          }}>
+            Synthesizing text to speech...
+          </span>
+          <span style={{
+            width: 2,
+            height: 14,
+            background: "#22d3ee",
+            animation: "blink-cursor 0.75s step-end infinite",
+            boxShadow: "0 0 6px #22d3ee",
+          }} />
+        </div>
+      </div>
+
+      {/* ── Progress bar ────────────────────────────────────────── */}
+      <div style={{
+        width      : 300,
+        opacity    : barReady ? 1 : 0,
+        transform  : barReady ? "translateY(0)" : "translateY(14px)",
+        transition : "opacity 0.5s ease, transform 0.5s cubic-bezier(0.22,1,0.36,1)",
+      }}>
+        {/* Track */}
+        <div style={{
+          height        : 2,
+          borderRadius  : 99,
+          background    : "rgba(255,255,255,0.05)",
+          overflow      : "hidden",
+          marginBottom  : 14,
+          position      : "relative",
+        }}>
+          {/* Glow layer */}
+          <div style={{
+            position     : "absolute",
+            inset        : 0,
+            background   : "rgba(6,182,212,0.08)",
+            borderRadius : 99,
+          }} />
+          {/* Fill */}
+          <div style={{
+            height     : "100%",
+            borderRadius: 99,
+            width      : `${progress}%`,
+            background : "linear-gradient(90deg, #06b6d4 0%, #6366f1 50%, #a855f7 100%)",
+            boxShadow  : "0 0 12px rgba(6,182,212,0.8), 0 0 24px rgba(99,102,241,0.4)",
+            transition : "width 0.08s linear",
+            position   : "relative",
+          }}>
+            {/* Shimmer sweep on the fill */}
+            <div style={{
+              position   : "absolute",
+              inset      : 0,
+              background : "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.5) 50%, transparent 100%)",
+              animation  : "sweep 1.2s linear infinite",
+            }} />
+            {/* Bright tip */}
+            <div style={{
+              position     : "absolute",
+              right        : -2,
+              top          : -3,
+              width        : 8,
+              height       : 8,
+              borderRadius : "50%",
+              background   : "#ffffff",
+              boxShadow    : "0 0 8px #22d3ee, 0 0 16px rgba(6,182,212,0.6)",
+              opacity      : progress > 2 && progress < 99 ? 1 : 0,
+              transition   : "opacity 0.3s",
+            }} />
+          </div>
+        </div>
+
+        {/* Status row */}
+        <div style={{
+          display        : "flex",
+          justifyContent : "space-between",
+          alignItems     : "center",
+          fontSize       : 10,
+          fontFamily     : "'JetBrains Mono', monospace",
+          letterSpacing  : "0.04em",
+        }}>
+          <span 
+            key={stepIdx}
+            style={{
+              color     : "rgba(148,163,184,0.45)",
+              transition: "opacity 0.3s",
+              animation : "step-fade 0.3s ease",
+            }}
+          >
+            {STEPS[stepIdx]}
+          </span>
+          <span style={{ color: "rgba(6,182,212,0.6)", fontWeight: 700 }}>
+            {Math.round(progress)}%
+          </span>
+        </div>
+      </div>
+
+
 
       <style>{`
-
-:root{
-
---cyan:#22d3ee;
---indigo:#818cf8;
---purple:#a78bfa;
---bg: linear-gradient(180deg, #0f172a 0%, #0a0f1d 100%);
-
-}
-
-.nv-splash{
-
-position:fixed;
-inset:0;
-
-background: var(--bg);
-
-overflow:hidden;
-
-display:flex;
-align-items:center;
-justify-content:center;
-
-font-family:
-Outfit,
-Inter,
-sans-serif;
-
-transition:
-opacity .7s ease,
-transform .7s ease;
-
-}
-
-.nv-splash.closing{
-
-opacity:0;
-
-transform:scale(1.03);
-
-}
-
-.nv-bg{
-
-position:absolute;
-inset:0;
-
-overflow:hidden;
-
-}
-
-.nv-grid{
-
-position:absolute;
-inset:0;
-
-background-image:
-
-linear-gradient(
-rgba(255,255,255,.03) 1px,
-transparent 1px),
-
-linear-gradient(
-90deg,
-rgba(255,255,255,.03) 1px,
-transparent 1px);
-
-background-size:70px 70px;
-
-mask-image:
-radial-gradient(circle,#000 35%,transparent 100%);
-
-animation:
-gridFloat 20s linear infinite;
-
-opacity:.35;
-
-}
-
-.nv-glow{
-
-position:absolute;
-
-border-radius:50%;
-
-filter:blur(80px);
-
-}
-
-.nv-glow-a{
-
-width:800px;
-height:800px;
-
-background:
-rgba(34,211,238,.13);
-
-top:-250px;
-left:-150px;
-
-animation:
-orbA 10s ease-in-out infinite alternate;
-
-}
-
-.nv-glow-b{
-
-width:900px;
-height:900px;
-
-background:
-rgba(167,139,250,.11);
-
-right:-250px;
-bottom:-250px;
-
-animation:
-orbB 12s ease-in-out infinite alternate;
-
-}
-
-.nv-center{
-
-position:relative;
-
-display:flex;
-
-flex-direction:column;
-
-align-items:center;
-
-z-index:5;
-
-}
-
-.nv-logo-wrapper{
-
-position:relative;
-
-opacity:0;
-
-transform:
-translateY(25px)
-scale(.65);
-
-transition:
-
-opacity .8s ease,
-
-transform .8s cubic-bezier(.22,1,.36,1);
-
-}
-
-.nv-logo-wrapper.show{
-
-opacity:1;
-
-transform:
-translateY(0)
-scale(1);
-
-}
-
-.nv-logo{
-
-width:120px;
-height:120px;
-
-border-radius:34px;
-overflow:hidden;
-
-display:flex;
-align-items:center;
-justify-content:center;
-
-background:
-linear-gradient(
-145deg,
-
-rgba(34,211,238,.12),
-
-rgba(129,140,248,.18),
-
-rgba(167,139,250,.14));
-
-backdrop-filter:blur(20px);
-
-border:
-1px solid rgba(255,255,255,.08);
-
-box-shadow:
-
-0 0 60px rgba(34,211,238,.18),
-
-0 0 120px rgba(129,140,248,.10),
-
-inset 0 1px rgba(255,255,255,.08);
-
-animation:
-logoBreath 4s ease-in-out infinite;
-
-}
-
-.nv-ring{
-
-position:absolute;
-
-border-radius:50%;
-
-border:
-1px solid rgba(34,211,238,.08);
-
-inset:-18px;
-
-animation:
-ringPulse 3.2s ease-in-out infinite;
-
-}
-
-.ring-2{
-
-inset:-35px;
-
-animation-delay:.4s;
-
-}
-
-.ring-3{
-
-inset:-52px;
-
-animation-delay:.8s;
-
-}
-
-.nv-stream{
-
-position:absolute;
-
-left:95px;
-
-top:18px;
-
-width:280px;
-
-height:120px;
-
-pointer-events:none;
-
-opacity:0;
-
-transition:opacity .6s ease;
-
-}
-
-.nv-stream.show{
-
-opacity:1;
-
-}.nv-word{
-
-position:absolute;
-
-left:0;
-top:50%;
-
-font-family:
-"JetBrains Mono",
-monospace;
-
-font-size:13px;
-
-font-weight:600;
-
-white-space:nowrap;
-
-background:
-linear-gradient(
-90deg,
-#22d3ee,
-#818cf8,
-#a78bfa);
-
--webkit-background-clip:text;
--webkit-text-fill-color:transparent;
-
-background-clip:text;
-
-filter:
-drop-shadow(0 0 10px rgba(34,211,238,.45));
-
-opacity:0;
-
-animation:
-wordFlow
-4.8s linear infinite;
-
-}
-
-.nv-word:nth-child(2){
-
-top:42%;
-
-}
-
-.nv-word:nth-child(3){
-
-top:57%;
-
-}
-
-.nv-word:nth-child(4){
-
-top:48%;
-
-}
-
-.nv-word:nth-child(5){
-
-top:36%;
-
-}
-
-.nv-word:nth-child(6){
-
-top:63%;
-
-}
-
-.nv-word:nth-child(7){
-
-top:53%;
-
-}
-
-.nv-word:nth-child(8){
-
-top:44%;
-
-}
-
-.nv-word:nth-child(9){
-
-top:59%;
-
-}
-
-.nv-word:nth-child(10){
-
-top:38%;
-
-}
-
-.nv-stream-particle{
-
-position:absolute;
-
-left:40px;
-top:50%;
-
-width:4px;
-height:4px;
-
-border-radius:50%;
-
-background:#22d3ee;
-
-filter:
-blur(.3px);
-
-box-shadow:
-0 0 12px rgba(34,211,238,.8);
-
-animation:
-particleFlow
-3.6s linear infinite;
-
-opacity:0;
-
-}
-
-.nv-title{
-
-margin-top:55px;
-
-display:flex;
-
-flex-direction:column;
-
-align-items:center;
-
-opacity:0;
-
-transform:
-translateY(18px);
-
-transition:
-
-opacity .7s ease,
-
-transform .7s cubic-bezier(.22,1,.36,1);
-
-}
-
-.nv-title.show{
-
-opacity:1;
-
-transform:
-translateY(0);
-
-}
-
-.nv-title h1{
-
-margin:0;
-
-font-size:46px;
-
-font-weight:800;
-
-letter-spacing:-.05em;
-
-background:
-
-linear-gradient(
-
-135deg,
-
-#ffffff,
-
-#dbeafe,
-
-#22d3ee,
-
-#818cf8,
-
-#a78bfa);
-
-background-size:220% 220%;
-
--webkit-background-clip:text;
-
--webkit-text-fill-color:transparent;
-
-background-clip:text;
-
-animation:
-gradientShift
-5s linear infinite;
-
-}
-
-.nv-title p{
-
-margin-top:12px;
-
-font-size:12px;
-
-letter-spacing:.16em;
-
-font-family:
-
-"JetBrains Mono",
-
-monospace;
-
-text-transform:uppercase;
-
-color:
-
-rgba(180,190,210,.55);
-
-}
-
-.nv-progress-container{
-
-width:340px;
-
-margin-top:45px;
-
-opacity:0;
-
-transform:
-translateY(16px);
-
-transition:
-
-opacity .6s ease,
-
-transform .6s ease;
-
-}
-
-.nv-progress-container.show{
-
-opacity:1;
-
-transform:
-translateY(0);
-
-}
-
-.nv-progress-track{
-
-height:3px;
-
-border-radius:999px;
-
-background:
-
-rgba(255,255,255,.05);
-
-overflow:hidden;
-
-position:relative;
-
-}
-
-.nv-progress-fill{
-
-height:100%;
-
-position:relative;
-
-border-radius:999px;
-
-background:
-
-linear-gradient(
-
-90deg,
-
-#22d3ee,
-
-#818cf8,
-
-#a78bfa);
-
-transition:
-
-width .08s linear;
-
-}
-
-.nv-progress-glow{
-
-position:absolute;
-
-right:-6px;
-
-top:-4px;
-
-width:12px;
-
-height:12px;
-
-border-radius:50%;
-
-background:#ffffff;
-
-box-shadow:
-
-0 0 14px #22d3ee,
-
-0 0 28px rgba(34,211,238,.65);
-
-}
-
-.nv-progress-info{
-
-display:flex;
-
-justify-content:space-between;
-
-margin-top:14px;
-
-font-size:11px;
-
-font-family:
-
-"JetBrains Mono",
-
-monospace;
-
-}
-
-.nv-step{
-
-color:
-
-rgba(180,190,210,.55);
-
-animation:
-
-fadeStep
-
-.35s ease;
-
-}
-
-.nv-percent{
-
-font-weight:700;
-
-color:#22d3ee;
-
-}
-
-.nv-bottom-glow{
-
-position:absolute;
-
-bottom:-240px;
-
-left:50%;
-
-transform:
-
-translateX(-50%);
-
-width:900px;
-
-height:500px;
-
-border-radius:50%;
-
-background:
-
-radial-gradient(
-
-circle,
-
-rgba(34,211,238,.10),
-
-transparent 70%);
-
-filter:
-
-blur(90px);
-
-pointer-events:none;
-
-}
-
-@keyframes wordFlow{
-  0%{
-    transform: translate(125px, 15px) scale(.65);
-    opacity:0;
-  }
-  15%{
-    opacity:1;
-  }
-  50%{
-    opacity:1;
-  }
-  100%{
-    transform: translate(315px, -18px) scale(1);
-    opacity:0;
-  }
-}
-
-@keyframes particleFlow{
-  0%{
-    transform: translate(125px, 20px) scale(.2);
-    opacity:0;
-  }
-  15%{
-    opacity:1;
-  }
-  100%{
-    transform: translate(335px, -12px) scale(1.8);
-    opacity:0;
-  }
-}@keyframes logoBreath{
-
-0%{
-
-transform:
-scale(1);
-
-box-shadow:
-
-0 0 40px rgba(34,211,238,.18),
-
-0 0 80px rgba(129,140,248,.10),
-
-inset 0 1px rgba(255,255,255,.08);
-
-}
-
-50%{
-
-transform:
-scale(1.045);
-
-box-shadow:
-
-0 0 70px rgba(34,211,238,.28),
-
-0 0 120px rgba(129,140,248,.18),
-
-0 0 180px rgba(167,139,250,.10),
-
-inset 0 1px rgba(255,255,255,.12);
-
-}
-
-100%{
-
-transform:
-scale(1);
-
-box-shadow:
-
-0 0 40px rgba(34,211,238,.18),
-
-0 0 80px rgba(129,140,248,.10),
-
-inset 0 1px rgba(255,255,255,.08);
-
-}
-
-}
-
-@keyframes ringPulse{
-
-0%{
-
-transform:
-scale(.92);
-
-opacity:.55;
-
-}
-
-50%{
-
-transform:
-scale(1.12);
-
-opacity:.08;
-
-}
-
-100%{
-
-transform:
-scale(.92);
-
-opacity:.55;
-
-}
-
-}
-
-@keyframes orbA{
-
-0%{
-
-transform:
-translate(0,0);
-
-}
-
-100%{
-
-transform:
-translate(60px,45px);
-
-}
-
-}
-
-@keyframes orbB{
-
-0%{
-
-transform:
-translate(0,0);
-
-}
-
-100%{
-
-transform:
-translate(-60px,-40px);
-
-}
-
-}
-
-@keyframes gridFloat{
-
-0%{
-
-background-position:
-0 0;
-
-}
-
-100%{
-
-background-position:
-70px 70px;
-
-}
-
-}
-
-@keyframes grid-drift {
-  from { background-position: 0 0; }
-  to   { background-position: 56px 56px; }
-}
-
-@keyframes gradientShift{
-
-0%{
-
-background-position:
-0% 50%;
-
-}
-
-100%{
-
-background-position:
-200% 50%;
-
-}
-
-}
-
-@keyframes fadeStep{
-
-0%{
-
-opacity:0;
-
-transform:
-translateY(6px);
-
-}
-
-100%{
-
-opacity:1;
-
-transform:
-translateY(0);
-
-}
-
-}
-
-@keyframes particleFloat{
-
-0%{
-
-transform:
-translateY(0);
-
-opacity:.12;
-
-}
-
-50%{
-
-opacity:.45;
-
-}
-
-100%{
-
-transform:
-translateY(-18px);
-
-opacity:.12;
-
-}
-
-}
-
-.nv-particle{
-
-position:absolute;
-
-border-radius:50%;
-
-background:#22d3ee;
-
-opacity:.15;
-
-animation:
-particleFloat linear infinite;
-
-}
-
-.nv-particle:nth-child(even){
-
-background:#818cf8;
-
-}
-
-.nv-particle:nth-child(3n){
-
-background:#a78bfa;
-
-}
-
-.nv-logo img {
-  border-radius: 34px;
-}
-
-@media (max-width:700px){
-
-.nv-title h1{
-
-font-size:34px;
-
-}
-
-.nv-progress-container{
-
-width:280px;
-
-}
-
-.nv-stream{
-
-left:78px;
-
-width:220px;
-
-}
-
-.nv-word{
-
-font-size:11px;
-
-}
-
-.nv-logo{
-
-width:95px;
-
-height:95px;
-
-}
-
-}
-
-`}</style>
-
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@700;800&display=swap');
+
+        @keyframes orb-a {
+          from { transform: translate(0,0) scale(1); }
+          to   { transform: translate(40px,30px) scale(1.1); }
+        }
+        @keyframes orb-b {
+          from { transform: translate(0,0) scale(1); }
+          to   { transform: translate(-30px,-40px) scale(1.08); }
+        }
+        @keyframes orb-c {
+          from { transform: translate(0,0) scale(1); }
+          to   { transform: translate(20px,-20px) scale(1.05); }
+        }
+        @keyframes ring-pulse {
+          0%,100% { opacity: 0.6; transform: scale(1); }
+          50%      { opacity: 0.12; transform: scale(1.1); }
+        }
+        @keyframes float-0 {
+          from { transform: translateY(0px); }
+          to   { transform: translateY(-14px); }
+        }
+        @keyframes float-1 {
+          from { transform: translateY(0px) translateX(0px); }
+          to   { transform: translateY(-10px) translateX(8px); }
+        }
+        @keyframes float-2 {
+          from { transform: translateY(0px) translateX(0px); }
+          to   { transform: translateY(-12px) translateX(-6px); }
+        }
+        @keyframes shimmer {
+          0%   { background-position: 0% 50%; }
+          100% { background-position: 200% 50%; }
+        }
+        @keyframes typing-effect {
+          0%, 90%, 100% { width: 0; }
+          30%, 80%      { width: 100%; }
+        }
+        @keyframes blink-cursor {
+          from, to { background: transparent; }
+          50%      { background: #22d3ee; }
+        }
+        @keyframes sweep {
+          from { transform: translateX(-100%); }
+          to   { transform: translateX(400%); }
+        }
+        @keyframes step-fade {
+          from { opacity: 0; transform: translateY(4px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes spin-slow {
+          from { transform: rotate(0deg); }
+          to   { transform: rotate(360deg); }
+        }
+        @keyframes logo-breathe {
+          0%, 100% { box-shadow: 0 0 0 1px rgba(6,182,212,0.08), 0 0 40px rgba(6,182,212,0.2), 0 0 80px rgba(99,102,241,0.14), inset 0 1px 0 rgba(255,255,255,0.1); }
+          50%      { box-shadow: 0 0 0 1px rgba(6,182,212,0.12), 0 0 50px rgba(6,182,212,0.3), 0 0 100px rgba(99,102,241,0.2), inset 0 1px 0 rgba(255,255,255,0.12); }
+        }
+        @keyframes grid-drift {
+          from { background-position: 0 0; }
+          to   { background-position: 60px 60px; }
+        }
+      `}</style>
     </div>
-
   );
-
 };
