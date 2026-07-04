@@ -24,8 +24,6 @@ const PARTICLES = Array.from({ length: 35 }, (_, i) => ({
   opacity: 0.08 + (i % 5) * 0.05,
 }));
 
-// Animated equaliser bar heights
-const WAVE_HEIGHTS = [6, 14, 22, 30, 38, 44, 38, 30, 22, 14, 6, 14, 22, 30, 38, 44, 38, 30];
 
 export const SplashScreen: React.FC<SplashScreenProps> = ({ onDone }) => {
   const [progress,   setProgress]   = useState(0);
@@ -230,7 +228,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onDone }) => {
           animation       : "logo-breathe 3s ease-in-out infinite",
           overflow        : "hidden",
         }}>
-          <img src="/logo.jpg" alt="Nexora Voice Logo" style={{ width: "100%", height: "100%", objectFit: "cover", transform: "scale(1.35)" }} />
+          <img src="/logo.jpg" alt="Nexora Voice Logo" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
         </div>
       </div>
 

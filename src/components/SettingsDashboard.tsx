@@ -430,16 +430,6 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
         
         {/* Sidebar Nav */}
         <aside className="dashboard-sidebar">
-          <div className="sidebar-brand">
-            <div className="brand-logo" style={{ overflow: "hidden" }}>
-              <img src="/logo.jpg" alt="logo" style={{ width: "100%", height: "100%", objectFit: "cover", transform: "scale(1.35)" }} />
-            </div>
-            <div className="brand-meta">
-              <h2 className="brand-title">Nexora</h2>
-              <span className="brand-subtitle">Voice Dictation</span>
-            </div>
-          </div>
-
           <nav className="sidebar-nav">
             <button 
               className={`nav-item ${activeTab === "general" ? "active" : ""}`}

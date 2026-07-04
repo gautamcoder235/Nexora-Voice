@@ -108,9 +108,14 @@ function App() {
       setHistory(event.payload);
     });
 
+    const unlistenSettings = listen("open-settings", () => {
+      setIsSettingsOpen(true);
+    });
+
     // windowLabel is initialized synchronously at creation
     return () => {
       unlistenSTT.then((fn) => fn());
+      unlistenSettings.then((fn) => fn());
     };
   }, []);
 

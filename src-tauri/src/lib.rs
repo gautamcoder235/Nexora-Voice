@@ -94,7 +94,8 @@ pub fn run() {
 
             // Create System Tray Menu
             let tray_menu = Menu::with_items(&app_handle, &[
-                &MenuItem::with_id(&app_handle, "show", "Show Settings", true, None::<&str>)?,
+                &MenuItem::with_id(&app_handle, "open", "Open Nexora Voice", true, None::<&str>)?,
+                &MenuItem::with_id(&app_handle, "settings", "Show Settings", true, None::<&str>)?,
                 &MenuItem::with_id(&app_handle, "quit", "Quit Nexora Voice", true, None::<&str>)?,
             ])?;
 
@@ -104,11 +105,19 @@ pub fn run() {
                 .menu(&tray_menu)
                 .on_menu_event(move |app_h, event| {
                     match event.id.as_ref() {
-                        "show" => {
+                        "open" => {
                             if let Some(win) = app_h.get_webview_window("main") {
                                 let _ = win.unminimize();
                                 let _ = win.show();
                                 let _ = win.set_focus();
+                            }
+                        }
+                        "settings" => {
+                            if let Some(win) = app_h.get_webview_window("main") {
+                                let _ = win.unminimize();
+                                let _ = win.show();
+                                let _ = win.set_focus();
+                                let _ = win.emit("open-settings", ());
                             }
                         }
                         "quit" => {

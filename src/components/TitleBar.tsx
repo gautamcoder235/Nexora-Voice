@@ -28,7 +28,7 @@ export const TitleBar: React.FC = () => {
     <div className="custom-titlebar" data-tauri-drag-region="true">
       <div className="titlebar-brand">
         <div className="titlebar-icon" style={{ overflow: "hidden" }}>
-          <img src="/logo.jpg" alt="logo" style={{ width: "100%", height: "100%", objectFit: "cover", transform: "scale(1.35)" }} />
+          <img src="/logo.jpg" alt="logo" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
         </div>
         <span className="titlebar-title">Nexora Voice</span>
       </div>
