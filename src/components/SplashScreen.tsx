@@ -308,7 +308,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onDone }) => {
       {/* ── Typing Text Simulation (representing Text-to-Speech) ── */}
       <div style={{
         height        : 40,
-        marginBottom  : 8,
+        marginBottom  : 12,
         display       : "flex",
         alignItems    : "center",
         justifyContent: "center",
