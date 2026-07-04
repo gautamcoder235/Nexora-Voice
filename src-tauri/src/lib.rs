@@ -13,6 +13,10 @@ use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{TrayIconBuilder, TrayIconEvent, MouseButton};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut};
 use std::str::FromStr;
+use std::sync::atomic::{AtomicBool, Ordering};
+
+// Global lock to prevent rapid shortcut presses from overlapping transcription sessions
+static TRANSCRIBING_LOCK: AtomicBool = AtomicBool::new(false);
 
 use audio::AudioRecorder;
 use chunked_recorder::ChunkedRecorder;
@@ -172,6 +176,7 @@ pub fn run() {
                         if let Some(overlay) = app_h.get_webview_window("overlay") {
                             let _ = overlay.hide();
                         }
+                        TRANSCRIBING_LOCK.store(false, Ordering::SeqCst);
                         return;
                     }
                     
@@ -187,6 +192,13 @@ pub fn run() {
                     
                     if settings.streaming_mode {
                         let is_recording = app_h.state::<ChunkedRecorder>().is_recording();
+                        
+                        // If not currently recording, check the transcription lock
+                        // to prevent starting a new session while previous one is still processing
+                        if !is_recording && TRANSCRIBING_LOCK.load(Ordering::SeqCst) {
+                            println!("Ignoring shortcut: transcription still in progress");
+                            return;
+                        }
 
                         if !is_recording {
                             // Start chunked recording
@@ -231,7 +243,8 @@ pub fn run() {
                                 }
                             });
                         } else {
-                            // Stop chunked recording
+                            // Stop chunked recording — acquire the transcription lock
+                            TRANSCRIBING_LOCK.store(true, Ordering::SeqCst);
                             if let Some(overlay) = app_h.get_webview_window("overlay") {
                                 let _ = overlay.emit("status-change", "Transcribing...");
                             }
@@ -240,6 +253,7 @@ pub fn run() {
                                 Ok(data) => data,
                                 Err(e) => {
                                     eprintln!("Failed to stop chunked recorder: {}", e);
+                                    TRANSCRIBING_LOCK.store(false, Ordering::SeqCst);
                                     if let Some(overlay) = app_h.get_webview_window("overlay") {
                                         let _ = overlay.hide();
                                     }
@@ -282,6 +296,7 @@ pub fn run() {
                                     crate::history::add_history_entry(&app_h_clone, &formatted_text, process_elapsed_ms, elapsed_ms, "Streaming");
                                 }
 
+                                TRANSCRIBING_LOCK.store(false, Ordering::SeqCst);
                                 if let Some(overlay) = app_h_clone.get_webview_window("overlay") {
                                     let _ = overlay.hide();
                                 }
@@ -295,6 +310,12 @@ pub fn run() {
                             state.is_recording
                         };
 
+                        // If not currently recording, check the transcription lock
+                        if !is_recording && TRANSCRIBING_LOCK.load(Ordering::SeqCst) {
+                            println!("Ignoring shortcut: transcription still in progress");
+                            return;
+                        }
+
                         if !is_recording {
                             if let Some(overlay) = app_h.get_webview_window("overlay") {
                                 let _ = overlay.emit("status-change", "Listening...");
@@ -302,6 +323,7 @@ pub fn run() {
                             }
                             let _ = recorder.inner().start(app_h.clone());
                         } else {
+                            TRANSCRIBING_LOCK.store(true, Ordering::SeqCst);
                             if let Some(overlay) = app_h.get_webview_window("overlay") {
                                 let _ = overlay.emit("status-change", "Transcribing...");
                             }
@@ -316,6 +338,7 @@ pub fn run() {
                                 }
                             }
 
+                            TRANSCRIBING_LOCK.store(false, Ordering::SeqCst);
                             if let Some(overlay) = app_h.get_webview_window("overlay") {
                                 let _ = overlay.hide();
                             }
