@@ -30,6 +30,10 @@ export const RecordingOverlay: React.FC = () => {
   const animRef      = useRef(0);
   const barsVisRef   = useRef(false); // mirrors barsVisible without stale closure
 
+  // Guard: only allow "transcribing" state after we've seen "listening" at least once
+  // This prevents stale events from a previous session flashing the dots on open
+  const hasBeenListening = useRef(false);
+
   useEffect(() => {
     const unlistenStatus = listen<string>("status-change", (event) => {
       const msg = event.payload;
@@ -42,15 +46,17 @@ export const RecordingOverlay: React.FC = () => {
         barH.current        = Array(BAR_COUNT).fill(MIN_H);
         setBarsVisible(false);
         barsVisRef.current  = false;
+        hasBeenListening.current = true;
         setOverlayState("listening");
-      } else if (msg.startsWith("Trans")) {
-        // hide bars when transcribing starts
+      } else if (msg.startsWith("Trans") && hasBeenListening.current) {
+        // hide bars when transcribing starts — only if we were listening first
         setBarsVisible(false);
         barsVisRef.current = false;
         setOverlayState("transcribing");
       } else {
         setBarsVisible(false);
         barsVisRef.current = false;
+        hasBeenListening.current = false;
         setOverlayState("idle");
       }
     });

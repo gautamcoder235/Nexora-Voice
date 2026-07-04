@@ -170,7 +170,6 @@ pub fn run() {
                             let _ = r.inner().stop();
                         }
                         if let Some(overlay) = app_h.get_webview_window("overlay") {
-                            let _ = overlay.emit("status-change", "Idle");
                             let _ = overlay.hide();
                         }
                         return;
@@ -242,7 +241,6 @@ pub fn run() {
                                 Err(e) => {
                                     eprintln!("Failed to stop chunked recorder: {}", e);
                                     if let Some(overlay) = app_h.get_webview_window("overlay") {
-                                        let _ = overlay.emit("status-change", "Idle");
                                         let _ = overlay.hide();
                                     }
                                     return;
@@ -285,7 +283,6 @@ pub fn run() {
                                 }
 
                                 if let Some(overlay) = app_h_clone.get_webview_window("overlay") {
-                                    let _ = overlay.emit("status-change", "Idle");
                                     let _ = overlay.hide();
                                 }
                             });
@@ -320,7 +317,6 @@ pub fn run() {
                             }
 
                             if let Some(overlay) = app_h.get_webview_window("overlay") {
-                                let _ = overlay.emit("status-change", "Idle");
                                 let _ = overlay.hide();
                             }
                         }
