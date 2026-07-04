@@ -30,7 +30,7 @@ export const TitleBar: React.FC = () => {
         <div className="titlebar-icon" style={{ overflow: "hidden" }}>
           <img src="/logo.jpg" alt="logo" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
         </div>
-        <span className="titlebar-title">Nexora Voice Studio</span>
+        <span className="titlebar-title">Nexora Voice</span>
       </div>
 
       <div className="titlebar-controls">

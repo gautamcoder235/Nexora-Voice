@@ -148,7 +148,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onDone }) => {
             <div className="nv-ring ring-3" />
 
             <div className="nv-logo">
-              <img src="/logo.jpg" alt="Nexora Voice Logo" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              <img src="/logo.jpg" alt="Nexora Voice Logo" style={{ width: "100%", height: "100%", objectFit: "cover", transform: "scale(1.22)" }} />
             </div>
 
           </div>
@@ -160,9 +160,9 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onDone }) => {
             }`}
             style={{
               position: "absolute",
-              left: "115px", // Starts perfectly at the right edge of the logo
+              left: "0px", // Aligns perfectly to the left edge of the logo container
               top: "0px",
-              width: "280px",
+              width: "120px", // Bound to logo container dimensions
               height: "120px",
               pointerEvents: "none",
             }}
@@ -246,7 +246,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onDone }) => {
 --cyan:#22d3ee;
 --indigo:#818cf8;
 --purple:#a78bfa;
---bg:#020408;
+--bg: linear-gradient(180deg, #0f172a 0%, #0a0f1d 100%);
 
 }
 
@@ -255,7 +255,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onDone }) => {
 position:fixed;
 inset:0;
 
-background:var(--bg);
+background: var(--bg);
 
 overflow:hidden;
 
@@ -886,77 +886,34 @@ pointer-events:none;
 }
 
 @keyframes wordFlow{
-
-0%{
-
-transform:
-
-translate(0,0)
-
-scale(.65);
-
-opacity:0;
-
-}
-
-15%{
-
-opacity:1;
-
-}
-
-50%{
-
-opacity:1;
-
-}
-
-100%{
-
-transform:
-
-translate(190px,-18px)
-
-scale(1);
-
-opacity:0;
-
-}
-
+  0%{
+    transform: translate(125px, 15px) scale(.65);
+    opacity:0;
+  }
+  15%{
+    opacity:1;
+  }
+  50%{
+    opacity:1;
+  }
+  100%{
+    transform: translate(315px, -18px) scale(1);
+    opacity:0;
+  }
 }
 
 @keyframes particleFlow{
-
-0%{
-
-transform:
-
-translate(0,0)
-
-scale(.2);
-
-opacity:0;
-
-}
-
-15%{
-
-opacity:1;
-
-}
-
-100%{
-
-transform:
-
-translate(210px,-12px)
-
-scale(1.8);
-
-opacity:0;
-
-}
-
+  0%{
+    transform: translate(125px, 20px) scale(.2);
+    opacity:0;
+  }
+  15%{
+    opacity:1;
+  }
+  100%{
+    transform: translate(335px, -12px) scale(1.8);
+    opacity:0;
+  }
 }@keyframes logoBreath{
 
 0%{
