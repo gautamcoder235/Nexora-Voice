@@ -69,10 +69,9 @@ export const RecordingOverlay: React.FC = () => {
     // ─── rAF loop: direct DOM writes, zero React overhead ───────────────
     const animate = () => {
       const raw   = rmsRef.current;
-      // Gate: require RMS to be 1.5× above baseline before anything shows.
-      // e.g. baseline=0.05 → gate=0.075 → only speech at 0.075+ triggers bars.
-      // Minimum gate of 0.018 ensures very quiet environments still have a floor.
-      const floor   = Math.max(noiseRef.current * 1.5, 0.018);
+      // Gate: require RMS to be 1.25× above baseline before anything shows (higher sensitivity).
+      // Minimum gate of 0.006 ensures quiet speaking in silent rooms still triggers waves.
+      const floor   = Math.max(noiseRef.current * 1.25, 0.006);
       const cleaned = raw > floor ? raw - floor : 0;
 
       // Fast attack (0.92), slow decay (0.12)
@@ -81,7 +80,8 @@ export const RecordingOverlay: React.FC = () => {
       const smooth = prev + (cleaned - prev) * coeff;
       smoothRef.current = smooth;
 
-      const normalized = Math.min(smooth * 14.0, 1.0);
+      // Amplify the signal (24.0 multiplier) so speech triggers waves easily
+      const normalized = Math.min(smooth * 24.0, 1.0);
       const level      = Math.pow(normalized, 0.55);
 
       // Track silence to auto-hide bars
