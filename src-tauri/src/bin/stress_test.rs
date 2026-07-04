@@ -50,7 +50,7 @@ async fn main() {
     for i in 1..=10 {
         let start = std::time::Instant::now();
         
-        let result: Result<String, String> = service.transcribe(&audio_data);
+        let result: Result<String, String> = service.transcribe(&audio_data, true);
         
         let elapsed = start.elapsed();
         match result {
