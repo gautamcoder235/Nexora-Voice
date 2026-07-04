@@ -34,17 +34,45 @@ export const Sidebar: React.FC<SidebarProps> = ({
   return (
     <aside style={{
       width: "210px",
-      background: "#05070a",
-      borderRight: "1px solid rgba(255, 255, 255, 0.05)",
+      background: "rgba(10, 16, 30, 0.55)",
+      borderRight: "1px solid rgba(255, 255, 255, 0.06)",
+      backdropFilter: "blur(20px)",
       display: "flex",
       flexDirection: "column",
       justifyContent: "space-between",
       height: "100%",
-      padding: "20px 12px 16px 12px",
+      padding: "16px 12px",
       boxSizing: "border-box",
       flexShrink: 0,
       zIndex: 10
     }}>
+      {/* Brand logo block */}
+      <div style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        padding: "0px 6px 14px 6px",
+        borderBottom: "1px solid rgba(255, 255, 255, 0.04)",
+        marginBottom: 16,
+        flexShrink: 0
+      }}>
+        <div style={{
+          width: 32,
+          height: 32,
+          borderRadius: 8,
+          overflow: "hidden",
+          border: "1px solid rgba(255, 255, 255, 0.08)",
+          boxShadow: "0 0 10px rgba(6, 182, 212, 0.2)",
+          flexShrink: 0
+        }}>
+          <img src="/logo.jpg" alt="logo" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
+          <span style={{ fontSize: 13, fontWeight: 700, color: "#fff", letterSpacing: "-0.01em", lineHeight: 1.1 }}>Nexora</span>
+          <span style={{ fontSize: 9, color: "rgba(255, 255, 255, 0.35)", fontWeight: 500 }}>Voice Studio</span>
+        </div>
+      </div>
+
       {/* Nav List */}
       <nav style={{ display: "flex", flexDirection: "column", gap: 4, flexGrow: 1 }}>
         {navItems.map((item) => {

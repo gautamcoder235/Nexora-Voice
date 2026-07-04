@@ -221,7 +221,6 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onDone }) => {
           width           : 96,
           height          : 96,
           borderRadius    : 28,
-          background      : "linear-gradient(145deg, rgba(6,182,212,0.15) 0%, rgba(99,102,241,0.2) 50%, rgba(139,92,246,0.15) 100%)",
           border          : "1px solid rgba(255,255,255,0.12)",
           boxShadow       : "0 0 0 1px rgba(6,182,212,0.08), 0 0 40px rgba(6,182,212,0.2), 0 0 80px rgba(99,102,241,0.14), inset 0 1px 0 rgba(255,255,255,0.1)",
           backdropFilter  : "blur(20px)",
@@ -229,29 +228,9 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onDone }) => {
           alignItems      : "center",
           justifyContent  : "center",
           animation       : "logo-breathe 3s ease-in-out infinite",
+          overflow        : "hidden",
         }}>
-          <svg width="46" height="46" viewBox="0 0 46 46" fill="none">
-            <defs>
-              <linearGradient id="mic-fill" x1="16" y1="4" x2="30" y2="28" gradientUnits="userSpaceOnUse">
-                <stop stopColor="#22d3ee"/>
-                <stop offset="0.5" stopColor="#818cf8"/>
-                <stop offset="1" stopColor="#a78bfa"/>
-              </linearGradient>
-              <filter id="glow">
-                <feGaussianBlur stdDeviation="1.5" result="blur"/>
-                <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-              </filter>
-            </defs>
-            {/* Mic body */}
-            <rect x="16" y="4" width="14" height="22" rx="7" fill="url(#mic-fill)" filter="url(#glow)"/>
-            {/* Arc */}
-            <path d="M9 23c0 7.732 6.268 14 14 14s14-6.268 14-14"
-                  stroke="#22d3ee" strokeWidth="2.5" strokeLinecap="round" fill="none" filter="url(#glow)"/>
-            {/* Stand line */}
-            <line x1="23" y1="37" x2="23" y2="43" stroke="#818cf8" strokeWidth="2.5" strokeLinecap="round"/>
-            {/* Base */}
-            <line x1="15" y1="43" x2="31" y2="43" stroke="#818cf8" strokeWidth="2.5" strokeLinecap="round"/>
-          </svg>
+          <img src="/logo.jpg" alt="Nexora Voice Logo" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
         </div>
       </div>
 

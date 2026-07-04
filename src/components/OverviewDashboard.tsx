@@ -213,7 +213,7 @@ export const OverviewDashboard: React.FC = () => {
           }} />
           <span style={{ fontSize: 11, color: "rgba(255, 255, 255, 0.4)", fontFamily: "monospace" }}>
             whisper-{modelSize}
-            {avgRtfPct !== null ? ` · ${avgRtfPct}% realtime` : " · calibrating…"}
+            {avgRtfPct !== null ? ` · ${(avgRtfPct / 100).toFixed(1)}x real-time` : " · calibrating…"}
           </span>
         </div>
       </div>

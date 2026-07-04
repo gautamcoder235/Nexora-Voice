@@ -431,8 +431,8 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
         {/* Sidebar Nav */}
         <aside className="dashboard-sidebar">
           <div className="sidebar-brand">
-            <div className="brand-logo">
-              <Cpu className="h-5 w-5 text-cyan-400" />
+            <div className="brand-logo" style={{ overflow: "hidden" }}>
+              <img src="/logo.jpg" alt="logo" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
             </div>
             <div className="brand-meta">
               <h2 className="brand-title">Nexora</h2>
