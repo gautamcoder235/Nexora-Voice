@@ -427,9 +427,9 @@ function App() {
               {customInstructions.length >= 500 && " — limit reached"}
               {customInstructions.length >= 400 && customInstructions.length < 500 && " — approaching limit"}
             </span>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: saveSuccess ? 12 : 0 }}>
               {saveSuccess && (
-                <span style={{ fontSize: 11, color: "#10b981", fontWeight: 600 }}>
+                <span style={{ fontSize: 11, color: "#10b981", fontWeight: 600, whiteSpace: "nowrap" }}>
                   ✓ Saved successfully
                 </span>
               )}
