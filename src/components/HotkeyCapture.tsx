@@ -194,7 +194,7 @@ export const HotkeyCapture: React.FC<HotkeyCaptureProps> = ({ value, onChange, l
               </span>
             ) : (
               keys.map((k, i) => {
-                const displayKey = k === "Control" ? "Ctrl" : k;
+                const displayKey = k === "Control" ? "Ctrl" : k === "Escape" ? "Esc" : k;
                 return (
                   <React.Fragment key={k}>
                     {i > 0 && (
