@@ -4,7 +4,6 @@ import { listen } from "@tauri-apps/api/event";
 import { 
   Home, 
   Sparkles, 
-  Play, 
   Copy, 
   Users, 
   Gauge, 
