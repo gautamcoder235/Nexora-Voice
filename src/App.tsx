@@ -175,7 +175,7 @@ function App() {
           </div>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1.8fr 1.1fr", gap: "24px", flexGrow: 1, minHeight: 0, paddingBottom: 8 }}>
+        <div className="dictionary-grid">
           {/* Rules List Column */}
           <div className="glass-panel" style={{ padding: "20px", display: "flex", flexDirection: "column", gap: 16, minHeight: 0 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>

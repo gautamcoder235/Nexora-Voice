@@ -1023,3 +1023,20 @@ body {
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* Responsive Grid for Dictionary Tab */
+.dictionary-grid {
+  display: grid;
+  grid-template-columns: 1.8fr 1.1fr;
+  gap: 24px;
+  flex-grow: 1;
+  min-height: 0;
+  padding-bottom: 8px;
+}
+
+@media (max-width: 1024px) {
+  .dictionary-grid {
+    grid-template-columns: 1fr !important;
+    overflow-y: auto !important;
+  }
+}
+
