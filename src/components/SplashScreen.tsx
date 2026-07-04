@@ -305,28 +305,49 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onDone }) => {
         </div>
       </div>
 
-      {/* ── Animated equaliser wave ─────────────────────────────── */}
+      {/* ── Typing Text Simulation (representing Text-to-Speech) ── */}
       <div style={{
-        display       : "flex",
-        alignItems    : "flex-end",
-        gap           : 3,
         height        : 52,
         marginBottom  : 28,
-        opacity       : waveReady ? 0.35 : 0,
-        transform     : waveReady ? "scaleY(1)" : "scaleY(0)",
-        transformOrigin: "bottom",
+        display       : "flex",
+        alignItems    : "center",
+        justifyContent: "center",
+        opacity       : waveReady ? 0.9 : 0,
+        transform     : waveReady ? "translateY(0)" : "translateY(12px)",
         transition    : "opacity 0.6s 0.1s ease, transform 0.6s 0.1s cubic-bezier(0.34,1.56,0.64,1)",
       }}>
-        {WAVE_HEIGHTS.map((h, i) => (
-          <div key={i} style={{
-            width        : 3,
-            height       : h,
-            borderRadius : 2,
-            background   : `linear-gradient(to top, #06b6d4, #818cf8)`,
-            animation    : `wave-bar ${0.8 + (i % 4) * 0.15}s ${(i * 0.06) % 0.8}s ease-in-out infinite alternate`,
-            transformOrigin: "bottom",
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          background: "rgba(255, 255, 255, 0.02)",
+          border: "1px solid rgba(255, 255, 255, 0.04)",
+          padding: "8px 16px",
+          borderRadius: 20,
+          boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.02)",
+          backdropFilter: "blur(8px)",
+        }}>
+          <span style={{
+            fontSize: 12,
+            fontFamily: "'JetBrains Mono', monospace",
+            color: "rgba(34, 211, 238, 0.95)",
+            textShadow: "0 0 8px rgba(6, 182, 212, 0.5)",
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            display: "inline-block",
+            animation: "typing-effect 3.5s steps(30, end) infinite",
+            maxWidth: "280px",
+          }}>
+            Synthesizing text to speech...
+          </span>
+          <span style={{
+            width: 2,
+            height: 14,
+            background: "#22d3ee",
+            animation: "blink-cursor 0.75s step-end infinite",
+            boxShadow: "0 0 6px #22d3ee",
           }} />
-        ))}
+        </div>
       </div>
 
       {/* ── Progress bar ────────────────────────────────────────── */}
@@ -447,9 +468,13 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onDone }) => {
           0%   { background-position: 0% 50%; }
           100% { background-position: 200% 50%; }
         }
-        @keyframes wave-bar {
-          from { transform: scaleY(0.3); opacity: 0.5; }
-          to   { transform: scaleY(1);   opacity: 1; }
+        @keyframes typing-effect {
+          0%, 90%, 100% { width: 0; }
+          30%, 80%      { width: 100%; }
+        }
+        @keyframes blink-cursor {
+          from, to { background: transparent; }
+          50%      { background: #22d3ee; }
         }
         @keyframes sweep {
           from { transform: translateX(-100%); }
