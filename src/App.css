@@ -1044,6 +1044,7 @@ body {
   .add-rule-panel {
     order: 1 !important;
     flex-shrink: 0 !important;
+    height: fit-content !important;
   }
   
   .active-rules-panel {

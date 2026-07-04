@@ -267,7 +267,7 @@ function App() {
           </div>
 
           {/* Add Rule Column */}
-          <div className="glass-panel add-rule-panel" style={{ padding: "20px", display: "flex", flexDirection: "column", gap: 18, height: "fit-content" }}>
+          <div className="glass-panel add-rule-panel" style={{ padding: "20px", display: "flex", flexDirection: "column", gap: 18, height: "100%" }}>
             <h3 style={{ fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.8)", margin: 0 }}>Add Custom Casing Rule</h3>
             
             <form onSubmit={handleAddRule} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
