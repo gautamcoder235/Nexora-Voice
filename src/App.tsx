@@ -23,7 +23,6 @@ function App() {
   });
   const [activeTab, setActiveTab] = useState<string>("overview");
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
-  const [modelSize, setModelSize] = useState<string>("small");
   const [showSplash, setShowSplash] = useState<boolean>(true);
 
   // Dictionary replacement state (must be declared before any early return)
@@ -112,14 +111,9 @@ function App() {
       setHistory(event.payload);
     });
 
-    const unlistenModel = listen<string>("model-changed", (event) => {
-      setModelSize(event.payload);
-    });
-
     // windowLabel is initialized synchronously at creation
     return () => {
       unlistenSTT.then((fn) => fn());
-      unlistenModel.then((fn) => fn());
     };
   }, []);
 

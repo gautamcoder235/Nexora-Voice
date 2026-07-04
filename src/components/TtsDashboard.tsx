@@ -51,7 +51,6 @@ export const TtsDashboard: React.FC = () => {
   // Audio Player States
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [isPlayingLocal, setIsPlayingLocal] = useState(false);
-  const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [audioDuration, setAudioDuration] = useState(0);
   const [audioProgress, setAudioProgress] = useState(0);
   const [activePlayerText, setActivePlayerText] = useState("No audio loaded");

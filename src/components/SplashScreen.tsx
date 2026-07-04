@@ -328,12 +328,14 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onDone }) => {
           fontFamily     : "'JetBrains Mono', monospace",
           letterSpacing  : "0.04em",
         }}>
-          <span style={{
-            color     : "rgba(148,163,184,0.45)",
-            transition: "opacity 0.3s",
-            key       : stepIdx,
-            animation : "step-fade 0.3s ease",
-          }}>
+          <span 
+            key={stepIdx}
+            style={{
+              color     : "rgba(148,163,184,0.45)",
+              transition: "opacity 0.3s",
+              animation : "step-fade 0.3s ease",
+            }}
+          >
             {STEPS[stepIdx]}
           </span>
           <span style={{ color: "rgba(6,182,212,0.6)", fontWeight: 700 }}>

@@ -1,14 +1,12 @@
-import React, { useEffect, useState, useRef, useCallback } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, emit } from "@tauri-apps/api/event";
 import { 
   Sliders, 
-  Settings,
   Download, 
   CheckCircle, 
   AlertTriangle, 
   Keyboard, 
-  FileText, 
   ShieldAlert,
   Cpu, 
   Save, 
@@ -18,9 +16,7 @@ import {
   FolderOpen,
   Mic,
   Zap,
-  History as HistoryIcon,
-  LogOut,
-  Copy
+  LogOut
 } from "lucide-react";
 
 interface AppSettings {
@@ -183,6 +179,9 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
     model_size: "small",
     format_mode: "none",
     hotkey: "Control+Alt+V",
+    cancel_hotkey: "Escape",
+    settings_hotkey: "Ctrl+,",
+    format_hotkey: "Control+Alt+C",
     injection_method: "paste",
     custom_instructions: "",
     streaming_mode: false,
@@ -215,16 +214,6 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
   const [selectedMic, setSelectedMic] = useState<string>("");
   const [micPermissionState, setMicPermissionState] = useState<"granted" | "prompt" | "denied">("prompt");
   
-  interface HistoryEntry {
-    id: string;
-    timestamp: string;
-    text: string;
-    elapsed_ms: number;
-    mode: string;
-    audio_duration_ms: number;
-  }
-
-  const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [activeTab, setActiveTab] = useState<"general" | "models" | "mic" | "history">("general");
 
   // Fetch Settings & Model Status with retry for backend startup
@@ -241,11 +230,7 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
       setSettings(s);
       setOriginalSettings(s);
 
-      // Fetch history, always available
-      try {
-        const hist = await invoke<HistoryEntry[]>("get_history");
-        setHistory(hist);
-      } catch (e) { console.warn("Failed to load history", e); }
+
 
       // Mic listing is local (cpal), always available
       try {
@@ -332,17 +317,11 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
       });
     }
 
-    // Listen to real-time history updates from Rust
-    let unlistenPromise = listen<HistoryEntry[]>("history-updated", (event) => {
-      setHistory(event.payload);
-    });
-
     let unlistenDownloadPromise = listen<any>("model-download-progress", (event) => {
       setDownloadProgress(event.payload.percentage);
     });
 
     return () => {
-      unlistenPromise.then((fn) => fn());
       unlistenDownloadPromise.then((fn) => fn());
     };
   }, []);
@@ -364,14 +343,7 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
     }
   };
 
-  const handleClearHistory = async () => {
-    try {
-      await invoke("clear_history");
-      setHistory([]);
-    } catch (e) {
-      console.error(e);
-    }
-  };
+
 
   const handleLoadOrDownloadModel = async (modelKey: string) => {
     setLoadingModelKey(modelKey);
@@ -410,31 +382,7 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
     }));
   };
 
-  const formatTimeOnly = (ts: string) => {
-    try {
-      const parts = ts.split(" ");
-      if (parts.length < 2) return ts;
-      const timeParts = parts[1].split(":");
-      let hours = parseInt(timeParts[0]);
-      const minutes = timeParts[1];
-      const ampm = hours >= 12 ? "PM" : "AM";
-      hours = hours % 12;
-      hours = hours ? hours : 12;
-      return `${hours}:${minutes} ${ampm}`;
-    } catch {
-      return ts;
-    }
-  };
 
-  const getWordCount = (txt: string) => {
-    const trimmed = txt.trim();
-    if (!trimmed) return "0 words";
-    return `${trimmed.split(/\s+/).length} words`;
-  };
-
-  const formatDurationOnly = (ms: number) => {
-    return `${Math.round((ms || 0) / 1000)}s`;
-  };
 
   if (showSpinner) {
     return (

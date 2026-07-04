@@ -4,13 +4,8 @@ import { listen } from "@tauri-apps/api/event";
 import { 
   Home, 
   Sparkles, 
-  AlertCircle, 
-  ArrowRight, 
-  Volume2, 
   Play, 
   Copy, 
-  Download, 
-  MoreVertical, 
   Users, 
   Gauge, 
   FileText, 
@@ -38,7 +33,7 @@ export const OverviewDashboard: React.FC = () => {
   // Real status bar state
   const [modelSize, setModelSize] = useState<string>("small");
   const [backendOnline, setBackendOnline] = useState<boolean>(false);
-  const [tick, setTick] = useState(0); // bumped every 10s to refresh relative times
+  const [, setTick] = useState(0); // bumped every 10s to refresh relative times
 
   const filteredHistory = history.filter(item => {
     if (selectedModeFilter !== "All" && item.mode !== selectedModeFilter) {
@@ -165,12 +160,7 @@ export const OverviewDashboard: React.FC = () => {
     ? Math.round(totalWords / ((totalSpeakingTimeMs / 1000) / 60))
     : 0;
 
-  // Get word count for specific item
-  const getItemWordCount = (txt: string) => {
-    const trimmed = txt.trim();
-    if (!trimmed) return 0;
-    return trimmed.split(/\s+/).length;
-  };
+
 
   // Real-time factor: how fast we process vs actual audio length
   // RTF% = (audio_duration / elapsed) * 100 → higher = faster than realtime
@@ -185,9 +175,9 @@ export const OverviewDashboard: React.FC = () => {
     return Math.round(avg * 100);
   })();
 
-  // Mock targets for aesthetic variety
-  const targets = ["Cursor", "Slack", "VS Code", "Chrome", "Terminal"];
-  const getMockTarget = (idx: number) => targets[idx % targets.length];
+  const handleCopyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+  };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", width: "100%", height: "100%", overflowY: "auto", overflowX: "hidden", paddingRight: 8, minWidth: 0, boxSizing: "border-box" }}>
