@@ -19,21 +19,13 @@ export const TitleBar: React.FC = () => {
     return () => { unlisten.then(fn => fn()); };
   }, []);
 
-  const handleDrag = async (e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).closest(".titlebar-controls")) return;
-    if (e.button === 0) {
-      e.preventDefault();
-      await appWindow.startDragging();
-    }
-  };
-
   const handleToggleMaximize = async () => {
     await appWindow.toggleMaximize();
     setIsMaximized(await appWindow.isMaximized());
   };
 
   return (
-    <div className="custom-titlebar" onMouseDown={handleDrag}>
+    <div className="custom-titlebar" data-tauri-drag-region="true">
       <div className="titlebar-brand">
         <div className="titlebar-icon">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">

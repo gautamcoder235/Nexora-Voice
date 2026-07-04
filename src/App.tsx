@@ -9,7 +9,8 @@ import { RecordingOverlay } from "./components/RecordingOverlay";
 import { SplashScreen } from "./components/SplashScreen";
 import { TitleBar } from "./components/TitleBar";
 import { invoke } from "@tauri-apps/api/core";
-import { BookOpen, FileText, Keyboard, BarChart2, CheckCircle2, ArrowRight, Trash2, Search } from "lucide-react";
+import { BookOpen, FileText, Keyboard, BarChart2, ArrowRight, Trash2, Search } from "lucide-react";
+import { HotkeyCapture } from "./components/HotkeyCapture";
 import "./App.css";
 
 function App() {
@@ -36,14 +37,17 @@ function App() {
   const [newTo, setNewTo] = useState("");
   const [ruleSearch, setRuleSearch] = useState("");
 
+  const [settings, setSettings] = useState<any>(null);
+
   const loadSettings = async () => {
     try {
-      const s = await invoke<{ model_size: string, custom_instructions: string }>("get_settings");
+      const s = await invoke<any>("get_settings");
       if (s) {
+        setSettings(s);
         if (s.model_size) {
           setModelSize(s.model_size);
         }
-        if (s.custom_instructions) {
+        if (typeof s.custom_instructions === "string") {
           setCustomInstructions(s.custom_instructions);
         }
       }
@@ -55,6 +59,17 @@ function App() {
   const handleCloseSettings = () => {
     setIsSettingsOpen(false);
     loadSettings();
+  };
+
+  const handleShortcutChange = async (key: string, newHotkey: string) => {
+    if (!settings) return;
+    const newSettings = { ...settings, [key]: newHotkey };
+    setSettings(newSettings);
+    try {
+      await invoke("update_settings", { settings: newSettings });
+    } catch (e) {
+      console.error("Failed to update shortcut:", e);
+    }
   };
 
   const [customInstructions, setCustomInstructions] = useState<string>(
@@ -462,10 +477,10 @@ function App() {
         
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {[
-            { label: "Toggle Voice Dictation", desc: "Start recording audio, speak, and press again to inject text.", key: "Ctrl + Alt + V" },
-            { label: "Cancel Recording", desc: "Cancel current recording and wipe buffer without pasting.", key: "Escape" },
-            { label: "Open Settings", desc: "Open the dictation settings configuration modal panel.", key: "Ctrl + ," },
-            { label: "Format Mode Toggle", desc: "Instantly switch casing formatting modes between camel, snake, pascal.", key: "Ctrl + Alt + C" }
+            { label: "Toggle Voice Dictation", desc: "Start recording audio, speak, and press again to inject text.", settingsKey: "hotkey" },
+            { label: "Cancel Recording", desc: "Cancel current recording and wipe buffer without pasting.", settingsKey: "cancel_hotkey" },
+            { label: "Open Settings", desc: "Open the dictation settings configuration modal panel.", settingsKey: "settings_hotkey" },
+            { label: "Format Mode Toggle", desc: "Instantly switch casing formatting modes between camel, snake, pascal.", settingsKey: "format_hotkey" }
           ].map((sh) => (
             <div key={sh.label} style={{
               display: "flex",
@@ -476,24 +491,16 @@ function App() {
               borderRadius: "10px",
               padding: "16px 20px"
             }}>
-              <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0, flex: 1, paddingRight: 20 }}>
                 <span style={{ fontSize: 12, fontWeight: 600, color: "#fff" }}>{sh.label}</span>
                 <span style={{ fontSize: 10.5, color: "rgba(255,255,255,0.4)", textOverflow: "ellipsis", overflow: "hidden" }}>{sh.desc}</span>
               </div>
-              <kbd style={{
-                background: "rgba(255,255,255,0.06)",
-                border: "1px solid rgba(255,255,255,0.1)",
-                borderRadius: "6px",
-                padding: "5px 12px",
-                fontSize: 10.5,
-                color: "#06b6d4",
-                fontFamily: "monospace",
-                fontWeight: 700,
-                boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
-                flexShrink: 0
-              }}>
-                {sh.key}
-              </kbd>
+              <div style={{ width: 220, flexShrink: 0 }}>
+                <HotkeyCapture
+                  value={settings ? settings[sh.settingsKey] || "" : ""}
+                  onChange={(val) => handleShortcutChange(sh.settingsKey, val)}
+                />
+              </div>
             </div>
           ))}
         </div>
@@ -672,7 +679,7 @@ function App() {
             flexDirection: "column",
           }}
         >
-          {activeTab === "overview" && <OverviewDashboard modelSize={modelSize} />}
+          {activeTab === "overview" && <OverviewDashboard />}
           {activeTab === "history" && <HistoryView />}
           {activeTab === "dictionary" && renderDictionaryView()}
           {activeTab === "instructions" && renderInstructionsView()}

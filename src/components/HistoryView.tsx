@@ -14,6 +14,7 @@ interface DictationLog {
 
 export const HistoryView: React.FC = () => {
   const [history, setHistory] = useState<DictationLog[]>([]);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   useEffect(() => {
     loadHistory();
@@ -41,10 +42,10 @@ export const HistoryView: React.FC = () => {
   };
 
   const handleClearHistory = async () => {
-    if (!confirm("Are you sure you want to clear your dictation history logs?")) return;
     try {
       await invoke("clear_history");
       setHistory([]);
+      setShowClearConfirm(false);
     } catch (e) {
       console.error(e);
     }
@@ -105,18 +106,12 @@ export const HistoryView: React.FC = () => {
 
         {history.length > 0 && (
           <button
-            onClick={handleClearHistory}
+            onClick={() => setShowClearConfirm(true)}
             className="btn-glass"
-            style={{
-              padding: "8px 14px",
-              fontSize: 11,
-              fontWeight: 600,
-              color: "#f87171",
-              borderColor: "rgba(239, 68, 68, 0.25)",
-              cursor: "pointer"
-            }}
+            style={{ padding: "6px 12px", display: "flex", alignItems: "center", gap: 6, borderColor: "rgba(239, 68, 68, 0.25)", color: "#f87171", cursor: "pointer" }}
           >
-            Clear History
+            <Trash2 className="h-4 w-4" />
+            <span>Clear History</span>
           </button>
         )}
       </div>
@@ -219,6 +214,58 @@ export const HistoryView: React.FC = () => {
       <div style={{ display: "flex", alignItems: "center", gap: 10, paddingTop: 12, borderTop: "1px solid rgba(255, 255, 255, 0.04)", fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 12 }}>
         <span>Showing last <strong>{history.length}</strong> transcription entries (audio files are never saved)</span>
       </div>
+
+      {/* Custom Confirmation Modal */}
+      {showClearConfirm && (
+        <div style={{
+          position: "absolute",
+          top: 0, left: 0, right: 0, bottom: 0,
+          background: "rgba(0,0,0,0.6)",
+          backdropFilter: "blur(4px)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 100,
+        }}>
+          <div style={{
+            background: "rgba(15, 23, 42, 0.95)",
+            border: "1px solid rgba(255,255,255,0.1)",
+            borderRadius: "16px",
+            padding: "24px",
+            width: "360px",
+            boxShadow: "0 20px 40px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)"
+          }}>
+            <h3 style={{ margin: "0 0 12px 0", color: "#fff", fontSize: "18px", fontWeight: 600 }}>Clear History</h3>
+            <p style={{ margin: "0 0 24px 0", color: "rgba(255,255,255,0.65)", fontSize: "14px", lineHeight: "1.5" }}>
+              Are you sure you want to clear your dictation history logs? This action cannot be undone.
+            </p>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px" }}>
+              <button 
+                className="btn-glass"
+                onClick={() => setShowClearConfirm(false)}
+                style={{ padding: "8px 16px", cursor: "pointer" }}
+              >
+                Cancel
+              </button>
+              <button 
+                style={{
+                  background: "#ef4444",
+                  color: "#fff",
+                  border: "none",
+                  padding: "8px 16px",
+                  borderRadius: "8px",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  boxShadow: "0 2px 8px rgba(239,68,68,0.3)"
+                }}
+                onClick={handleClearHistory}
+              >
+                Clear
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

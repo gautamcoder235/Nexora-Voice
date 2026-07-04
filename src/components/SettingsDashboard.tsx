@@ -27,9 +27,13 @@ interface AppSettings {
   model_size: string;
   format_mode: string;
   hotkey: string;
+  cancel_hotkey: string;
+  settings_hotkey: string;
+  format_hotkey: string;
   injection_method: string;
   custom_instructions: string;
   streaming_mode: boolean;
+  filter_hallucinations: boolean;
 }
 
 interface ModelStatus {
@@ -44,191 +48,7 @@ interface SettingsDashboardProps {
   onClose: () => void;
 }
 
-// ─── Hotkey Capture Widget ────────────────────────────────────────────────────
-interface HotkeyCaptureProps {
-  value: string;
-  onChange: (hotkey: string) => void;
-}
-
-const MODIFIER_KEYS = new Set(["Control", "Alt", "Shift", "Meta", "OS"]);
-
-const HotkeyCapture: React.FC<HotkeyCaptureProps> = ({ value, onChange }) => {
-  const [isCapturing, setIsCapturing] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  const parseKeys = (hotkey: string) =>
-    hotkey ? hotkey.split("+").map((k) => k.trim()).filter(Boolean) : [];
-
-  const handleKeyDown = useCallback(
-    (e: KeyboardEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-
-      if (e.key === "Escape") {
-        setIsCapturing(false);
-        return;
-      }
-
-      // Ignore standalone modifier presses — wait for the trigger key
-      if (MODIFIER_KEYS.has(e.key)) return;
-
-      const parts: string[] = [];
-      if (e.ctrlKey) parts.push("Control");
-      if (e.altKey) parts.push("Alt");
-      if (e.shiftKey) parts.push("Shift");
-      if (e.metaKey) parts.push("Meta");
-
-      // Normalise key name
-      let key = e.key;
-      if (key === " ") key = "Space";
-      else if (key.length === 1) key = key.toUpperCase();
-      parts.push(key);
-
-      onChange(parts.join("+"));
-      setIsCapturing(false);
-    },
-    [onChange]
-  );
-
-  useEffect(() => {
-    if (!isCapturing) return;
-    window.addEventListener("keydown", handleKeyDown, true);
-    return () => window.removeEventListener("keydown", handleKeyDown, true);
-  }, [isCapturing, handleKeyDown]);
-
-  // Close capture if user clicks outside
-  useEffect(() => {
-    if (!isCapturing) return;
-    const onOutside = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setIsCapturing(false);
-      }
-    };
-    document.addEventListener("mousedown", onOutside);
-    return () => document.removeEventListener("mousedown", onOutside);
-  }, [isCapturing]);
-
-  const keys = parseKeys(value);
-
-  return (
-    <div className="input-group" ref={containerRef}>
-      <label className="input-label">
-        <Keyboard className="h-4 w-4 text-cyan-400" />
-        <span>Global Shortcut Combination</span>
-      </label>
-
-      <div
-        role="button"
-        tabIndex={0}
-        onClick={() => setIsCapturing(true)}
-        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setIsCapturing(true); }}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          minHeight: 44,
-          padding: "8px 14px",
-          borderRadius: 10,
-          border: isCapturing
-            ? "1.5px solid rgba(34,211,238,0.8)"
-            : "1.5px solid rgba(255,255,255,0.08)",
-          background: isCapturing
-            ? "rgba(34,211,238,0.06)"
-            : "rgba(255,255,255,0.03)",
-          cursor: "pointer",
-          outline: "none",
-          transition: "border-color 0.2s, background 0.2s, box-shadow 0.2s",
-          boxShadow: isCapturing
-            ? "0 0 0 3px rgba(34,211,238,0.18), 0 0 16px rgba(34,211,238,0.12)"
-            : "none",
-          flexWrap: "wrap",
-          position: "relative",
-          userSelect: "none",
-        }}
-      >
-        {isCapturing ? (
-          <>
-            <span style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              color: "#22d3ee",
-              fontSize: 13,
-              fontWeight: 600,
-              letterSpacing: "0.03em",
-            }}>
-              <span style={{
-                width: 8,
-                height: 8,
-                borderRadius: "50%",
-                background: "#22d3ee",
-                display: "inline-block",
-                animation: "pulse-dot 1s ease-in-out infinite",
-              }} />
-              Press your shortcut keys...
-            </span>
-            <span style={{
-              marginLeft: "auto",
-              fontSize: 11,
-              color: "rgba(148,163,184,0.6)",
-              fontStyle: "italic",
-            }}>
-              Esc to cancel
-            </span>
-          </>
-        ) : (
-          <>
-            {keys.length === 0 ? (
-              <span style={{ color: "rgba(148,163,184,0.5)", fontSize: 13, fontStyle: "italic" }}>
-                Click to set shortcut…
-              </span>
-            ) : (
-              keys.map((k, i) => (
-                <React.Fragment key={k}>
-                  {i > 0 && (
-                    <span style={{ color: "rgba(148,163,184,0.4)", fontSize: 12 }}>+</span>
-                  )}
-                  <span style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    padding: "3px 10px",
-                    borderRadius: 6,
-                    background: "rgba(255,255,255,0.07)",
-                    border: "1px solid rgba(255,255,255,0.12)",
-                    color: "#e2e8f0",
-                    fontSize: 12,
-                    fontFamily: "monospace",
-                    fontWeight: 600,
-                    letterSpacing: "0.05em",
-                    boxShadow: "0 2px 0 rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)",
-                  }}>
-                    {k}
-                  </span>
-                </React.Fragment>
-              ))
-            )}
-            <span style={{
-              marginLeft: "auto",
-              fontSize: 11,
-              color: "rgba(148,163,184,0.4)",
-              display: "flex",
-              alignItems: "center",
-              gap: 4,
-            }}>
-              <Keyboard className="h-3 w-3" />
-              click to customize
-            </span>
-          </>
-        )}
-      </div>
-
-      <p className="input-help">
-        Click the field above and press your desired key combination to set a new global shortcut.
-      </p>
-    </div>
-  );
-};
+// HotkeyCapture has been extracted and moved to the shortcuts tab
 
 // Live volume visualization bar for mic selection cards
 const MicVisualizer: React.FC<{ micName: string }> = ({ micName }) => {
@@ -365,7 +185,8 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
     hotkey: "Control+Alt+V",
     injection_method: "paste",
     custom_instructions: "",
-    streaming_mode: false
+    streaming_mode: false,
+    filter_hallucinations: true
   });
 
   const [modelsStatus, setModelsStatus] = useState<ModelsStatusMap>({});
@@ -373,6 +194,7 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
   const [isRefreshingStatus, setIsRefreshingStatus] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [loadingModelKey, setLoadingModelKey] = useState<string | null>(null);
+  const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [microphones, setMicrophones] = useState<string[]>([]);
@@ -501,8 +323,13 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
       setHistory(event.payload);
     });
 
+    let unlistenDownloadPromise = listen<any>("model-download-progress", (event) => {
+      setDownloadProgress(event.payload.percentage);
+    });
+
     return () => {
-      unlistenPromise.then((u) => u());
+      unlistenPromise.then((fn) => fn());
+      unlistenDownloadPromise.then((fn) => fn());
     };
   }, []);
 
@@ -533,6 +360,7 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
 
   const handleLoadOrDownloadModel = async (modelKey: string) => {
     setLoadingModelKey(modelKey);
+    setDownloadProgress(0);
     setErrorMsg(null);
     setSuccessMsg(null);
     try {
@@ -745,11 +573,7 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
                 </div>
 
                 <div className="form-grid" style={{ marginTop: 4 }}>
-                  {/* Hotkey Selector – click-to-capture */}
-                  <HotkeyCapture
-                    value={settings.hotkey}
-                    onChange={(hk) => setSettings({ ...settings, hotkey: hk })}
-                  />
+                  {/* Hotkey Selector removed - it's now in the shortcuts tab */}
 
                   {/* Text Formatting Selection */}
                   <div className="input-group">
@@ -831,6 +655,23 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
                     </select>
                     <p className="input-help">Background chunk transcription gives near-instant results for long notes.</p>
                   </div>
+
+                  {/* AI Hallucination Filter */}
+                  <div className="input-group" style={{ gridColumn: "1 / -1" }}>
+                    <label className="input-label">
+                      <ShieldAlert className="h-4 w-4 text-cyan-400" />
+                      <span>AI Hallucination Filter</span>
+                    </label>
+                    <select
+                      value={settings.filter_hallucinations ? "true" : "false"}
+                      onChange={(e) => setSettings({ ...settings, filter_hallucinations: e.target.value === "true" })}
+                      className="glass-select"
+                    >
+                      <option value="true">Enabled (Strips musical notes & subtitle watermarks)</option>
+                      <option value="false">Disabled (Raw AI output)</option>
+                    </select>
+                    <p className="input-help">Whisper sometimes hallucinates song lyrics or "Thank you" during silence. Keep this enabled to automatically discard them.</p>
+                  </div>
                 </div>
               </div>
 
@@ -892,7 +733,10 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
                             className="btn-glass"
                           >
                             {isModelLoading ? (
-                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                {downloadProgress !== null && <span>{Math.round(downloadProgress)}%</span>}
+                              </div>
                             ) : (
                               "Load Model"
                             )}
@@ -902,9 +746,16 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
                             disabled={loadingModelKey !== null}
                             onClick={() => handleLoadOrDownloadModel(m.key)}
                             className="btn-download"
+                            style={isModelLoading && downloadProgress !== null ? { 
+                              background: `linear-gradient(to right, rgba(6, 182, 212, 0.4) ${downloadProgress}%, rgba(255,255,255,0.05) ${downloadProgress}%)`,
+                              borderColor: 'rgba(6, 182, 212, 0.5)'
+                            } : {}}
                           >
                             {isModelLoading ? (
-                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                {downloadProgress !== null && <span>{Math.round(downloadProgress)}%</span>}
+                              </div>
                             ) : (
                               <>
                                 <Download className="h-3.5 w-3.5" />

@@ -492,6 +492,10 @@ body {
   animation: spin-refresh 1.2s linear infinite;
 }
 
+.animate-spin {
+  animation: spin-refresh 1.2s linear infinite;
+}
+
 @keyframes spin-refresh {
   from {
     transform: rotate(0deg);

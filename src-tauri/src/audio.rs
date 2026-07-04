@@ -1,7 +1,5 @@
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{FromSample, Sample};
-use std::fs::File;
-use std::io::BufWriter;
 use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Emitter};
 
@@ -219,24 +217,3 @@ pub fn resample(input: &[f32], from_rate: u32, to_rate: u32) -> Vec<f32> {
     output
 }
 
-pub fn save_wav_file(samples: &[f32], path: &std::path::Path) -> Result<(), String> {
-    let spec = hound::WavSpec {
-        channels: 1,
-        sample_rate: 16000,
-        bits_per_sample: 16,
-        sample_format: hound::SampleFormat::Int,
-    };
-    
-    let file = File::create(path).map_err(|e| e.to_string())?;
-    let buf_writer = BufWriter::new(file);
-    let mut writer = hound::WavWriter::new(buf_writer, spec).map_err(|e| e.to_string())?;
-    
-    for &sample in samples {
-        // Convert f32 sample [-1.0, 1.0] to i16 [-32768, 32767]
-        let amplified = (sample * 32768.0).clamp(-32768.0, 32767.0) as i16;
-        writer.write_sample(amplified).map_err(|e| e.to_string())?;
-    }
-    
-    writer.finalize().map_err(|e| e.to_string())?;
-    Ok(())
-}

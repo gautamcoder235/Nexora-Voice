@@ -6,6 +6,7 @@ version = "0.1.0"
 description = "A Tauri App"
 authors = ["you"]
 edition = "2021"
+default-run = "tauri-app"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -34,6 +35,6 @@ enigo = "0.2.0"
 arboard = "3.4.0"
 uuid = { version = "1", features = ["v4"] }
 chrono = { version = "0.4", features = ["serde"] }
-whisper-rs = "0.16.0"
+whisper-rs = { version = "0.16.0", features = ["vulkan"] }
 futures-util = "0.3.32"
 

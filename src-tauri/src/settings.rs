@@ -11,9 +11,13 @@ pub struct AppSettings {
     pub model_size: String,
     pub format_mode: String,
     pub hotkey: String,
+    pub cancel_hotkey: String,
+    pub settings_hotkey: String,
+    pub format_hotkey: String,
     pub injection_method: String,
     pub custom_instructions: String,
     pub streaming_mode: bool,
+    pub filter_hallucinations: bool,
 }
 
 impl Default for AppSettings {
@@ -22,9 +26,13 @@ impl Default for AppSettings {
             model_size: "small".to_string(),
             format_mode: "none".to_string(),
             hotkey: "Control+Alt+V".to_string(), // Default hotkey
+            cancel_hotkey: "Escape".to_string(),
+            settings_hotkey: "Ctrl+,".to_string(),
+            format_hotkey: "Control+Alt+C".to_string(),
             injection_method: "paste".to_string(),
             custom_instructions: "".to_string(),
             streaming_mode: false,
+            filter_hallucinations: true,
         }
     }
 }

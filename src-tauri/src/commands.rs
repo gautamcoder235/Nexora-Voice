@@ -1,5 +1,4 @@
-use tauri::{AppHandle, State, Manager};
-use uuid::Uuid;
+use tauri::{AppHandle, State};
 
 use crate::audio::AudioRecorder;
 use crate::model_manager::ModelManager;
@@ -20,7 +19,20 @@ pub fn get_settings(app: AppHandle) -> AppSettings {
 
 #[tauri::command]
 pub fn update_settings(app: AppHandle, settings: AppSettings) -> Result<(), String> {
-    save_settings(&app, &settings)
+    save_settings(&app, &settings)?;
+    
+    // Reload shortcuts
+    use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut};
+    use std::str::FromStr;
+    
+    let _ = app.global_shortcut().unregister_all();
+    
+    if let Ok(s) = Shortcut::from_str(&settings.hotkey) { let _ = app.global_shortcut().register(s); }
+    if let Ok(s) = Shortcut::from_str(&settings.cancel_hotkey) { let _ = app.global_shortcut().register(s); }
+    if let Ok(s) = Shortcut::from_str(&settings.settings_hotkey) { let _ = app.global_shortcut().register(s); }
+    if let Ok(s) = Shortcut::from_str(&settings.format_hotkey) { let _ = app.global_shortcut().register(s); }
+    
+    Ok(())
 }
 
 #[tauri::command]
@@ -48,7 +60,7 @@ pub async fn stop_recording(
 
     // 4. Transcribe using native whisper.cpp
     let start_time = std::time::Instant::now();
-    let transcription_res = whisper.transcribe(&samples);
+    let transcription_res = whisper.transcribe(&samples, settings.filter_hallucinations);
     let elapsed_ms = start_time.elapsed().as_millis() as u32;
 
     // Handle transcription output
@@ -70,10 +82,11 @@ pub async fn stop_recording(
 #[tauri::command]
 pub async fn switch_backend_model(
     model_size: String,
+    app: tauri::AppHandle,
     model_manager: State<'_, ModelManager>,
     whisper: State<'_, WhisperService>
 ) -> Result<(), String> {
-    let path = model_manager.download_model(&model_size).await?;
+    let path = model_manager.download_model(&model_size, &app).await?;
     whisper.load_model(&path, &model_size)?;
     Ok(())
 }

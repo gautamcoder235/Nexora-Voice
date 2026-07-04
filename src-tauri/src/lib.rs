@@ -24,13 +24,19 @@ fn setup_global_shortcut(app: &tauri::App) -> Result<(), Box<dyn std::error::Err
     let app_handle = app.handle();
     let settings = load_settings(app_handle);
     
-    // Parse hotkey combination (e.g. "Control+Alt+V")
-    let hotkey_str = settings.hotkey.clone();
-    
-    // Register the shortcut using the global-shortcut plugin
-    let shortcut = Shortcut::from_str(&hotkey_str)?;
-    
-    app.global_shortcut().register(shortcut)?;
+    // Register all active shortcuts
+    if let Ok(shortcut) = Shortcut::from_str(&settings.hotkey) {
+        let _ = app.global_shortcut().register(shortcut);
+    }
+    if let Ok(shortcut) = Shortcut::from_str(&settings.cancel_hotkey) {
+        let _ = app.global_shortcut().register(shortcut);
+    }
+    if let Ok(shortcut) = Shortcut::from_str(&settings.settings_hotkey) {
+        let _ = app.global_shortcut().register(shortcut);
+    }
+    if let Ok(shortcut) = Shortcut::from_str(&settings.format_hotkey) {
+        let _ = app.global_shortcut().register(shortcut);
+    }
     
     Ok(())
 }
@@ -47,9 +53,13 @@ pub fn run() {
         // Register tauri 2.0 plugins
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new()
-            .with_handler(|app, _shortcut, event| {
+            .with_handler(|app, shortcut, event| {
                 if event.state == tauri_plugin_global_shortcut::ShortcutState::Pressed {
-                    let _ = app.emit("global-shortcut-triggered", ());
+                    let settings = crate::settings::load_settings(app);
+                    if let Ok(s) = Shortcut::from_str(&settings.hotkey) { if shortcut == &s { let _ = app.emit("global-shortcut-triggered", "toggle_dictation"); return; } }
+                    if let Ok(s) = Shortcut::from_str(&settings.cancel_hotkey) { if shortcut == &s { let _ = app.emit("global-shortcut-triggered", "cancel"); return; } }
+                    if let Ok(s) = Shortcut::from_str(&settings.settings_hotkey) { if shortcut == &s { let _ = app.emit("global-shortcut-triggered", "settings"); return; } }
+                    if let Ok(s) = Shortcut::from_str(&settings.format_hotkey) { if shortcut == &s { let _ = app.emit("global-shortcut-triggered", "format"); return; } }
                 }
             })
             .build())
@@ -69,12 +79,13 @@ pub fn run() {
             app.manage(AudioRecorder::new());
             app.manage(ChunkedRecorder::new());
             
-            // Try loading default model (e.g., small) if it exists
-            let initial_model = "small";
+            // Load the user's configured model on startup if cached
+            let settings = crate::settings::load_settings(&app_handle);
+            let initial_model = settings.model_size;
             let whisper = app.state::<WhisperService>();
-            if model_manager.is_model_cached(initial_model) {
-                let path = model_manager.get_model_path(initial_model);
-                let _ = whisper.load_model(&path, initial_model);
+            if model_manager.is_model_cached(&initial_model) {
+                let path = model_manager.get_model_path(&initial_model);
+                let _ = whisper.load_model(&path, &initial_model);
             }
 
             // Create System Tray Menu
@@ -119,19 +130,6 @@ pub fn run() {
             if let Some(overlay) = app.get_webview_window("overlay") {
                 let _ = overlay.hide();
                 
-                #[cfg(target_os = "windows")]
-                {
-                    let overlay_clone = overlay.clone();
-                    tauri::async_runtime::spawn(async move {
-                        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
-                        if let Ok(hwnd) = overlay_clone.hwnd() {
-                            unsafe {
-                                let raw_hwnd: *mut std::ffi::c_void = std::mem::transmute(hwnd);
-                                win32::disable_shadow(raw_hwnd);
-                            }
-                        }
-                    });
-                }
             }
 
             // Register Hotkeys
@@ -141,10 +139,51 @@ pub fn run() {
             
             // Global Shortcut Listener
             let app_h2 = app.handle().clone();
-            app.listen("global-shortcut-triggered", move |_event| {
+            app.listen("global-shortcut-triggered", move |event| {
+                let action = event.payload().to_string();
                 let app_h = app_h2.clone();
                 tauri::async_runtime::spawn(async move {
                     let settings = load_settings(&app_h);
+                    
+                    if action.contains("settings") {
+                        if let Some(win) = app_h.get_webview_window("main") {
+                            let _ = win.unminimize();
+                            let _ = win.show();
+                            let _ = win.set_focus();
+                            let _ = win.emit("open-settings", ());
+                        }
+                        return;
+                    }
+                    
+                    if action.contains("cancel") {
+                        let is_recording_chunked = app_h.state::<ChunkedRecorder>().is_recording();
+                        let is_recording_std = {
+                            let r = app_h.state::<AudioRecorder>();
+                            r.inner().state.lock().unwrap().is_recording
+                        };
+                        
+                        if is_recording_chunked {
+                            let _ = app_h.state::<ChunkedRecorder>().stop();
+                        }
+                        if is_recording_std {
+                            let r = app_h.state::<AudioRecorder>();
+                            let _ = r.inner().stop();
+                        }
+                        if let Some(overlay) = app_h.get_webview_window("overlay") {
+                            let _ = overlay.hide();
+                        }
+                        return;
+                    }
+                    
+                    if action.contains("format") {
+                        // Just emit to frontend to change format cycle
+                        if let Some(win) = app_h.get_webview_window("main") {
+                            let _ = win.emit("cycle-format-mode", ());
+                        }
+                        return;
+                    }
+                    
+                    // toggle_dictation logic
                     
                     if settings.streaming_mode {
                         let is_recording = app_h.state::<ChunkedRecorder>().is_recording();
@@ -177,7 +216,7 @@ pub fn run() {
                                             let chunked_recorder_api = app_h_api.state::<ChunkedRecorder>();
                                             
                                             // Process directly from RAM!
-                                            match whisper.transcribe(&chunk_samples) {
+                                            match whisper.transcribe(&chunk_samples, settings.filter_hallucinations) {
                                                 Ok(text) => {
                                                     if !text.is_empty() {
                                                         chunked_recorder_api.add_partial(idx, text);
@@ -208,39 +247,45 @@ pub fn run() {
                                 }
                             };
 
-                            let whisper = app_h.state::<WhisperService>();
+                            let app_h_clone = app_h.clone();
+                            tauri::async_runtime::spawn(async move {
+                                let whisper = app_h_clone.state::<WhisperService>();
+                                let process_start = std::time::Instant::now();
 
-                            // Transcribe remaining tail audio directly from RAM
-                            if remaining.len() >= 1600 {
-                                match whisper.transcribe(&remaining) {
-                                    Ok(text) => {
-                                        if !text.is_empty() {
-                                            partials.push((tail_idx, text));
+                                // Transcribe remaining tail audio directly from RAM
+                                if remaining.len() >= 1600 {
+                                    match whisper.transcribe(&remaining, settings.filter_hallucinations) {
+                                        Ok(text) => {
+                                            if !text.is_empty() {
+                                                partials.push((tail_idx, text));
+                                            }
+                                        }
+                                        Err(e) => {
+                                            eprintln!("Failed to transcribe tail chunk: {}", e);
                                         }
                                     }
-                                    Err(e) => {
-                                        eprintln!("Failed to transcribe tail chunk: {}", e);
-                                    }
                                 }
-                            }
 
-                            // Sort by chunk index
-                            partials.sort_by_key(|(idx, _)| *idx);
+                                // Sort by chunk index
+                                partials.sort_by_key(|(idx, _)| *idx);
 
-                            // Merge and deduplicate overlapping words
-                            let full_text = deduplicate_overlap(partials);
-                            println!("Combined stream output: \"{}\"", full_text);
+                                // Merge and deduplicate overlapping words
+                                let full_text = deduplicate_overlap(partials);
+                                println!("Combined stream output: \"{}\"", full_text);
+                                
+                                let process_elapsed_ms = process_start.elapsed().as_millis() as u32;
 
-                            // Apply formatting and inject at cursor
-                            let formatted_text = crate::commands::format_text(&full_text, &settings.format_mode);
-                             if !formatted_text.is_empty() {
-                                 let _ = crate::injector::inject_text(&formatted_text, &settings.injection_method);
-                                 crate::history::add_history_entry(&app_h, &formatted_text, 300, elapsed_ms, "Streaming");
-                             }
+                                // Apply formatting and inject at cursor
+                                let formatted_text = crate::commands::format_text(&full_text, &settings.format_mode);
+                                if !formatted_text.is_empty() {
+                                    let _ = crate::injector::inject_text(&formatted_text, &settings.injection_method);
+                                    crate::history::add_history_entry(&app_h_clone, &formatted_text, process_elapsed_ms, elapsed_ms, "Streaming");
+                                }
 
-                            if let Some(overlay) = app_h.get_webview_window("overlay") {
-                                let _ = overlay.hide();
-                            }
+                                if let Some(overlay) = app_h_clone.get_webview_window("overlay") {
+                                    let _ = overlay.hide();
+                                }
+                            });
                         }
                     } else {
                         // Standard Mode
@@ -353,95 +398,4 @@ fn deduplicate_overlap(partials: Vec<(usize, String)>) -> String {
     result
 }
 
-#[cfg(target_os = "windows")]
-mod win32 {
-    use std::ffi::c_void;
 
-    type HWND = *mut c_void;
-    type HMODULE = *mut c_void;
-    type FARPROC = *mut c_void;
-
-    #[repr(C)]
-    struct MARGINS {
-        cx_left_width: i32,
-        cx_right_width: i32,
-        cy_top_height: i32,
-        cy_bottom_height: i32,
-    }
-
-    extern "system" {
-        fn LoadLibraryA(lp_lib_file_name: *const u8) -> HMODULE;
-        fn GetProcAddress(h_module: HMODULE, lp_proc_name: *const u8) -> FARPROC;
-        fn FreeLibrary(h_module: HMODULE) -> i32;
-
-        fn SetWindowLongW(hwnd: HWND, n_index: i32, dw_new_long: i32) -> i32;
-        fn SetWindowPos(
-            hwnd: HWND,
-            hwnd_insert_after: HWND,
-            x: i32,
-            y: i32,
-            cx: i32,
-            cy: i32,
-            flags: u32,
-        ) -> i32;
-    }
-
-    pub unsafe fn disable_shadow(hwnd: HWND) {
-        // 1. Extend the frame into the client area using dwmapi.dll dynamically (to enable true alpha composition)
-        let lib_name = b"dwmapi.dll\0";
-        let h_module = LoadLibraryA(lib_name.as_ptr());
-        if !h_module.is_null() {
-            let extend_proc = b"DwmExtendFrameIntoClientArea\0";
-            let extend_func_ptr = GetProcAddress(h_module, extend_proc.as_ptr());
-            if !extend_func_ptr.is_null() {
-                let func: unsafe extern "system" fn(HWND, *const MARGINS) -> i32 = std::mem::transmute(extend_func_ptr);
-                let margins = MARGINS {
-                    cx_left_width: -1,
-                    cx_right_width: -1,
-                    cy_top_height: -1,
-                    cy_bottom_height: -1,
-                };
-                let _ = func(hwnd, &margins);
-            }
-
-            let attr_proc = b"DwmSetWindowAttribute\0";
-            let attr_func_ptr = GetProcAddress(h_module, attr_proc.as_ptr());
-            if !attr_func_ptr.is_null() {
-                let func: unsafe extern "system" fn(HWND, u32, *const c_void, u32) -> i32 = std::mem::transmute(attr_func_ptr);
-                
-                // DWMWA_NCRENDERING_POLICY = 2, DWMNCRP_DISABLED = 1
-                let policy: i32 = 1; 
-                let _ = func(hwnd, 2, &policy as *const i32 as *const c_void, 4);
-
-                // DWMWA_WINDOW_CORNER_PREFERENCE = 33, DWMWCP_DONOTROUND = 1
-                let corner_pref: i32 = 1;
-                let _ = func(hwnd, 33, &corner_pref as *const i32 as *const c_void, 4);
-            }
-            FreeLibrary(h_module);
-        }
-
-        // 2. Adjust window styles to ensure it is a clean borderless POPUP
-        const GWL_STYLE: i32 = -16;
-        const WS_POPUP: i32 = 0x80000000u32 as i32;
-        let _ = SetWindowLongW(hwnd, GWL_STYLE, WS_POPUP);
-
-        // 3. Clear extended styles (GWL_EXSTYLE) that might draw a border or window frame
-        const GWL_EXSTYLE: i32 = -20;
-        const WS_EX_APPWINDOW: i32 = 0x00040000;
-        let _ = SetWindowLongW(hwnd, GWL_EXSTYLE, WS_EX_APPWINDOW);
-
-        // 4. Force repaint and style apply using SetWindowPos (SWP_FRAMECHANGED)
-        const SWP_NOSIZE: u32 = 0x0001;
-        const SWP_NOMOVE: u32 = 0x0002;
-        const SWP_NOZORDER: u32 = 0x0004;
-        const SWP_FRAMECHANGED: u32 = 0x0020;
-        const SWP_NOACTIVATE: u32 = 0x0010;
-        
-        let _ = SetWindowPos(
-            hwnd,
-            std::ptr::null_mut(),
-            0, 0, 0, 0,
-            SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED | SWP_NOACTIVATE
-        );
-    }
-}

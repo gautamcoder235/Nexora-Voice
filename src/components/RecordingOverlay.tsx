@@ -148,13 +148,6 @@ export const RecordingOverlay: React.FC = () => {
     };
   }, []);
 
-  const handleMouseDown = async (e: React.MouseEvent) => {
-    if (e.button === 0) {
-      e.preventDefault();
-      await getCurrentWindow().startDragging();
-    }
-  };
-
   const isListening    = overlayState === "listening";
   const isTranscribing = overlayState === "transcribing";
 
@@ -164,9 +157,26 @@ export const RecordingOverlay: React.FC = () => {
     setVisualExpanded(active);
   }, [barsVisible, isTranscribing]);
 
+  // Use Tauri's native window dragging API for perfect OS cursor sync and DPI scaling
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.button === 0) {
+      getCurrentWindow().startDragging();
+    }
+  };
+
+  // Aggressive fix for Windows DWM background glitch on blur
+  useEffect(() => {
+    const unlisten = getCurrentWindow().onFocusChanged(({ payload: focused }) => {
+      if (!focused) {
+        getCurrentWindow().setDecorations(false);
+      }
+    });
+    return () => { unlisten.then(f => f()); };
+  }, []);
+
   return (
     <div
-      onMouseDown={handleMouseDown}
+      onPointerDown={handlePointerDown}
       style={{
         width         : visualExpanded ? "84px" : "36px",
         height        : "36px",
