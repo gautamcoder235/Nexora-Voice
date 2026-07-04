@@ -516,16 +516,16 @@ export const OverviewDashboard: React.FC = () => {
                       width: 26,
                       height: 26,
                       borderRadius: "50%",
-                      background: "linear-gradient(135deg, #2563eb, #3b82f6)",
+                      background: "linear-gradient(135deg, #0284c7, #0ea5e9)",
                       color: "#fff",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      boxShadow: "0 0 6px rgba(37, 99, 235, 0.4)",
+                      boxShadow: "0 0 6px rgba(14, 165, 233, 0.3)",
                       flexShrink: 0,
                       userSelect: "none"
                     }}>
-                      <Play className="h-3 w-3 fill-current" style={{ marginLeft: "1px" }} />
+                      <FileText className="h-3.5 w-3.5" />
                     </div>
                     
                     <span style={{ fontSize: 11, color: "#3b82f6", fontWeight: 600, fontFamily: "monospace", flexShrink: 0 }}>
