@@ -60,9 +60,6 @@ impl WhisperService {
         // Speed Optimizations:
         params.set_temperature(0.0);           // Strict deterministic decoding
         params.set_no_context(true);            // Ignore previous context (avoids context contamination/lag)
-        params.set_single_segment(true);        // Speed up parsing for quick voice dictation commands
-        params.set_entropy_thold(2.4);          // Early exit if high confidence
-        params.set_no_speech_thold(0.6);        // Stop decoding silence immediately
         // Use user-chosen language or fall back to auto-detect
         if language == "auto" || language.is_empty() {
             params.set_language(None);
