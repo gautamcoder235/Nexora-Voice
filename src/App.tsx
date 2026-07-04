@@ -389,62 +389,68 @@ function App() {
         </p>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 12, flexGrow: 1, minHeight: 0 }}>
-          <textarea
-            value={customInstructions}
-            onChange={(e) => setCustomInstructions(e.target.value)}
-            placeholder="Enter custom formatting guidelines or terminology preferences here..."
-            style={{
-              background: "rgba(0,0,0,0.25)",
-              border: "1px solid rgba(255,255,255,0.06)",
-              borderRadius: "12px",
-              padding: "16px 20px",
-              fontFamily: "monospace",
-              fontSize: 12.5,
-              color: "rgba(255,255,255,0.85)",
-              flexGrow: 1,
-              lineHeight: 1.6,
-              resize: "none",
-              outline: "none",
-              transition: "border-color 0.2s"
-            }}
-            onFocus={(e) => e.target.style.borderColor = "rgba(139, 92, 246, 0.4)"}
-            onBlur={(e) => e.target.style.borderColor = "rgba(255,255,255,0.06)"}
-          />
-          
-          <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 12 }}>
-              {saveSuccess && (
-                <span style={{ fontSize: 11, color: "#10b981", fontWeight: 600, whiteSpace: "nowrap" }}>
-                  ✓ Saved successfully
-                </span>
-              )}
-              <span style={{
-                fontSize: 10,
+          {/* Textarea with counter overlay */}
+          <div style={{ position: "relative", flexGrow: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
+            <textarea
+              value={customInstructions}
+              onChange={(e) => setCustomInstructions(e.target.value)}
+              placeholder="Enter custom formatting guidelines or terminology preferences here..."
+              style={{
+                background: "rgba(0,0,0,0.25)",
+                border: "1px solid rgba(255,255,255,0.06)",
+                borderRadius: "12px",
+                padding: "16px 20px 36px 20px",
                 fontFamily: "monospace",
-                fontWeight: customInstructions.length >= 400 ? 700 : 400,
-                color: customInstructions.length >= 500
-                  ? "#ef4444"
-                  : customInstructions.length >= 400
-                  ? "#f59e0b"
-                  : "rgba(255,255,255,0.3)",
-                transition: "color 0.2s",
-                whiteSpace: "nowrap"
-              }}>
-                {customInstructions.length} / 500 chars
-                {customInstructions.length >= 500 && " — limit reached"}
-                {customInstructions.length >= 400 && customInstructions.length < 500 && " — approaching limit"}
+                fontSize: 12.5,
+                color: "rgba(255,255,255,0.85)",
+                flexGrow: 1,
+                lineHeight: 1.6,
+                resize: "none",
+                outline: "none",
+                transition: "border-color 0.2s"
+              }}
+              onFocus={(e) => e.target.style.borderColor = "rgba(139, 92, 246, 0.4)"}
+              onBlur={(e) => e.target.style.borderColor = "rgba(255,255,255,0.06)"}
+            />
+            {/* Character counter — bottom-right inside textarea */}
+            <span style={{
+              position: "absolute",
+              bottom: 10,
+              right: 14,
+              fontSize: 10,
+              fontFamily: "monospace",
+              fontWeight: customInstructions.length >= 400 ? 700 : 400,
+              color: customInstructions.length >= 500
+                ? "#ef4444"
+                : customInstructions.length >= 400
+                ? "#f59e0b"
+                : "rgba(255,255,255,0.25)",
+              transition: "color 0.2s",
+              pointerEvents: "none",
+              userSelect: "none",
+            }}>
+              {customInstructions.length} / 500
+            </span>
+          </div>
+
+          <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 12 }}>
+            {saveSuccess && (
+              <span style={{ fontSize: 11, color: "#10b981", fontWeight: 600, whiteSpace: "nowrap" }}>
+                ✓ Saved successfully
               </span>
-              <button
-                onClick={handleSaveInstructions}
-                className="btn-primary"
-                style={{
-                  padding: "8px 20px",
-                  fontSize: 11.5,
-                  fontWeight: 600,
-                  cursor: "pointer"
-                }}
-              >
-                Save Instructions
-              </button>
+            )}
+            <button
+              onClick={handleSaveInstructions}
+              className="btn-primary"
+              style={{
+                padding: "8px 20px",
+                fontSize: 11.5,
+                fontWeight: 600,
+                cursor: "pointer"
+              }}
+            >
+              Save Instructions
+            </button>
           </div>
         </div>
       </div>
