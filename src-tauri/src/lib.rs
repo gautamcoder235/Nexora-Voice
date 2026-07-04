@@ -341,6 +341,7 @@ pub fn run() {
             commands::stop_recording,
             commands::switch_backend_model,
             commands::get_models_status,
+            commands::get_models_dir,
             commands::list_microphones,
             commands::get_history,
             commands::clear_history,

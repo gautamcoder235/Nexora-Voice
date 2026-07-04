@@ -92,6 +92,11 @@ pub async fn switch_backend_model(
 }
 
 #[tauri::command]
+pub fn get_models_dir(model_manager: State<'_, ModelManager>) -> String {
+    model_manager.get_models_dir().to_string_lossy().to_string()
+}
+
+#[tauri::command]
 pub async fn get_models_status(
     model_manager: State<'_, ModelManager>,
     whisper: State<'_, WhisperService>

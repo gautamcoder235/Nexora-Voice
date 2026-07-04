@@ -37,6 +37,10 @@ impl ModelManager {
         Self { models_dir }
     }
     
+    pub fn get_models_dir(&self) -> PathBuf {
+        self.models_dir.clone()
+    }
+    
     pub fn get_model_path(&self, model_size: &str) -> PathBuf {
         self.models_dir.join(format!("ggml-{}.bin", model_size))
     }

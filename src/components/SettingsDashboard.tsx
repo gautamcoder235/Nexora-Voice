@@ -205,6 +205,7 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
   }, [isLoadingSettings]);
 
   const [isRefreshingStatus, setIsRefreshingStatus] = useState<boolean>(false);
+  const [modelsDir, setModelsDir] = useState<string>("");
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [loadingModelKey, setLoadingModelKey] = useState<string | null>(null);
   const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
@@ -231,6 +232,14 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
       setOriginalSettings(s);
 
 
+
+      // Get models directory path
+      try {
+        const dir = await invoke<string>("get_models_dir");
+        setModelsDir(dir);
+      } catch (e) {
+        console.warn("Failed to load models directory path", e);
+      }
 
       // Mic listing is local (cpal), always available
       try {
@@ -762,7 +771,7 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
               {/* Bottom Path description */}
               <div className="footer-notes">
                 <FolderOpen className="h-4 w-4 text-cyan-400" />
-                <span>Models cached locally at: <strong>E:\Codes\Nexora\Nexora Voice\models</strong></span>
+                <span>Models cached locally at: <strong>{modelsDir || "Loading..."}</strong></span>
               </div>
             </div>
           )}
