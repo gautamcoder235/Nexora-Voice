@@ -411,28 +411,28 @@ function App() {
             onBlur={(e) => e.target.style.borderColor = "rgba(255,255,255,0.06)"}
           />
           
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{
-              fontSize: 10,
-              fontFamily: "monospace",
-              fontWeight: customInstructions.length >= 400 ? 700 : 400,
-              color: customInstructions.length >= 500
-                ? "#ef4444"
-                : customInstructions.length >= 400
-                ? "#f59e0b"
-                : "rgba(255,255,255,0.3)",
-              transition: "color 0.2s"
-            }}>
-              {customInstructions.length} / 500 chars
-              {customInstructions.length >= 500 && " — limit reached"}
-              {customInstructions.length >= 400 && customInstructions.length < 500 && " — approaching limit"}
-            </span>
-            <div style={{ display: "flex", alignItems: "center", gap: saveSuccess ? 12 : 0 }}>
+          <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 12 }}>
               {saveSuccess && (
                 <span style={{ fontSize: 11, color: "#10b981", fontWeight: 600, whiteSpace: "nowrap" }}>
                   ✓ Saved successfully
                 </span>
               )}
+              <span style={{
+                fontSize: 10,
+                fontFamily: "monospace",
+                fontWeight: customInstructions.length >= 400 ? 700 : 400,
+                color: customInstructions.length >= 500
+                  ? "#ef4444"
+                  : customInstructions.length >= 400
+                  ? "#f59e0b"
+                  : "rgba(255,255,255,0.3)",
+                transition: "color 0.2s",
+                whiteSpace: "nowrap"
+              }}>
+                {customInstructions.length} / 500 chars
+                {customInstructions.length >= 500 && " — limit reached"}
+                {customInstructions.length >= 400 && customInstructions.length < 500 && " — approaching limit"}
+              </span>
               <button
                 onClick={handleSaveInstructions}
                 className="btn-primary"
@@ -445,7 +445,6 @@ function App() {
               >
                 Save Instructions
               </button>
-            </div>
           </div>
         </div>
       </div>
