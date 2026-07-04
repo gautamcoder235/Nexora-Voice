@@ -810,7 +810,7 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
                         invoke("update_settings", { settings: updated }).catch(console.error);
                       }}
                       options={[
-                        { value: "auto", label: "Auto-detect (Default — no filter)" },
+                        { value: "auto", label: "Auto-detect (adds ~200ms detection overhead)" },
                         { value: "en", label: "English" },
                         { value: "hi", label: "Hindi" },
                         { value: "es", label: "Spanish" },

@@ -36,7 +36,7 @@ impl Default for AppSettings {
             streaming_mode: false,
             filter_hallucinations: true,
             mic_device: "Default".to_string(),
-            whisper_language: "auto".to_string(),
+            whisper_language: "en".to_string(),
         }
     }
 }

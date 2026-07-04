@@ -59,8 +59,10 @@ impl WhisperService {
         // Use user-chosen language or fall back to auto-detect
         if language == "auto" || language.is_empty() {
             params.set_language(None);
+            // auto-detect: whisper will run its language detection pass
         } else {
             params.set_language(Some(language));
+            params.set_detect_language(false); // skip detection pass — language is already known
         }
         
         // Maximize CPU threads for fastest possible transcription
