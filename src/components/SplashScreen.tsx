@@ -136,49 +136,60 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onDone }) => {
 
       <div className="nv-center">
 
-        <div
-          className={`nv-logo-wrapper ${
-            showLogo ? "show" : ""
-          }`}
-        >
-          <div className="nv-ring ring-1" />
-          <div className="nv-ring ring-2" />
-          <div className="nv-ring ring-3" />
+        {/* Anchor container for logo and text stream alignment */}
+        <div style={{ position: "relative", width: 120, height: 120 }}>
+          <div
+            className={`nv-logo-wrapper ${
+              showLogo ? "show" : ""
+            }`}
+          >
+            <div className="nv-ring ring-1" />
+            <div className="nv-ring ring-2" />
+            <div className="nv-ring ring-3" />
 
-          <div className="nv-logo">
-            <img src="/logo.jpg" alt="Nexora Voice Logo" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            <div className="nv-logo">
+              <img src="/logo.jpg" alt="Nexora Voice Logo" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            </div>
+
           </div>
 
-        </div>        {/* Animated text flowing out of microphone */}
+          {/* Animated text flowing out of microphone */}
+          <div
+            className={`nv-stream ${
+              showStream ? "show" : ""
+            }`}
+            style={{
+              position: "absolute",
+              left: "115px", // Starts perfectly at the right edge of the logo
+              top: "0px",
+              width: "280px",
+              height: "120px",
+              pointerEvents: "none",
+            }}
+          >
+            {STREAM_WORDS.map((word, index) => (
+              <span
+                key={index}
+                className="nv-word"
+                style={{
+                  animationDelay: `${index * 0.45}s`,
+                }}
+              >
+                {word}
+              </span>
+            ))}
 
-        <div
-          className={`nv-stream ${
-            showStream ? "show" : ""
-          }`}
-        >
-          {STREAM_WORDS.map((word, index) => (
-            <span
-              key={index}
-              className="nv-word"
-              style={{
-                animationDelay: `${index * 0.45}s`,
-              }}
-            >
-              {word}
-            </span>
-          ))}
-
-          {/* glowing particles leaving the text */}
-
-          {Array.from({ length: 12 }).map((_, i) => (
-            <div
-              key={i}
-              className="nv-stream-particle"
-              style={{
-                animationDelay: `${i * 0.22}s`,
-              }}
-            />
-          ))}
+            {/* glowing particles leaving the text */}
+            {Array.from({ length: 12 }).map((_, i) => (
+              <div
+                key={i}
+                className="nv-stream-particle"
+                style={{
+                  animationDelay: `${i * 0.22}s`,
+                }}
+              />
+            ))}
+          </div>
         </div>
 
         <div
