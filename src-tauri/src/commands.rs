@@ -101,7 +101,7 @@ pub async fn get_models_status(
     model_manager: State<'_, ModelManager>,
     whisper: State<'_, WhisperService>
 ) -> Result<std::collections::HashMap<String, ModelInfo>, String> {
-    let allowed_models = vec!["tiny", "base", "small", "medium"];
+    let allowed_models = vec!["tiny", "base", "small", "medium", "large-v3-turbo"];
     let mut status = std::collections::HashMap::new();
     
     let active_model = whisper.active_model.lock().unwrap().clone();

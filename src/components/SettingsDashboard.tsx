@@ -872,7 +872,8 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
                 {[
                   { key: "tiny", size: "75 MB", label: "Whisper Tiny Model", desc: "Ultra-fast synthesis, lowest VRAM footprint. Best for quick coding prompts." },
                   { key: "base", size: "140 MB", label: "Whisper Base Model", desc: "Balanced speed and accuracy. Decent for general dictations." },
-                  { key: "small", size: "460 MB", label: "Whisper Small Model", desc: "Highly accurate and robust offline transcription (Default)." }
+                  { key: "small", size: "460 MB", label: "Whisper Small Model", desc: "Highly accurate and robust offline transcription (Default)." },
+                  { key: "large-v3-turbo", size: "1.6 GB", label: "Whisper Large V3 Turbo", desc: "State-of-the-art speed & accuracy. The ultimate dictation quality (needs >4GB VRAM)." }
                 ].map((m) => {
                   const status = modelsStatus[m.key] || { cached: false, active: false };
                   const isModelLoading = loadingModelKey === m.key;
