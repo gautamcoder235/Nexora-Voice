@@ -395,6 +395,7 @@ function App() {
               value={customInstructions}
               onChange={(e) => setCustomInstructions(e.target.value)}
               placeholder="Enter custom formatting guidelines or terminology preferences here..."
+              maxLength={500}
               style={{
                 background: "rgba(0,0,0,0.25)",
                 border: "1px solid rgba(255,255,255,0.06)",
