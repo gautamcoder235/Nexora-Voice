@@ -132,7 +132,7 @@ pub fn run() {
                             };
                             let mut s = crate::settings::load_settings(&app_h);
                             s.format_mode = new_mode.to_string();
-                            crate::settings::save_settings(&app_h, &s);
+                            let _ = crate::settings::save_settings(&app_h, &s);
                             let _ = app_h.emit("settings-changed", &s.format_mode);
                         }
                         "quit" => {
