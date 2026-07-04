@@ -164,29 +164,49 @@ where
         
         let mean = if count > 0 { sum / count as f32 } else { 0.0 };
         
-        // 2. Subtract mean and calculate cleaned RMS
+        // 2. Subtract mean, store cleaned samples, and collect for frequency analysis
+        let mut cleaned_samples: Vec<f32> = Vec::with_capacity(count);
         let mut rms_sum = 0.0;
         for &sample in input {
             let f: f32 = sample.to_float_sample().to_sample();
             let cleaned = f - mean;
             state.samples.push(cleaned);
-            
+            cleaned_samples.push(cleaned);
             rms_sum += cleaned * cleaned;
         }
         
         if count > 0 {
             let rms = (rms_sum / count as f32).sqrt();
-            
-            // Log RMS value every 50 callbacks to inspect actual microphone signal levels
-            static mut LOG_COUNTER: usize = 0;
-            unsafe {
-                LOG_COUNTER += 1;
-                if LOG_COUNTER % 50 == 0 {
-                    println!("[AudioRecorder] Emitting RMS: {:.5}", rms);
+
+            // 3. Compute 7 frequency band energies using Goertzel's algorithm
+            let sr = state.native_sample_rate as f32;
+            let target_freqs: [f32; 7] = [100.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0, 6000.0];
+            let mut bands: [f32; 7] = [0.0; 7];
+            let n = cleaned_samples.len() as f32;
+
+            for (i, &freq) in target_freqs.iter().enumerate() {
+                let k = (freq * n / sr).round();
+                let omega = 2.0 * std::f32::consts::PI * k / n;
+                let coeff = 2.0 * omega.cos();
+                let mut s0: f32 = 0.0;
+                let mut s1: f32 = 0.0;
+                let mut s2: f32 = 0.0;
+
+                for &sample in &cleaned_samples {
+                    s0 = sample + coeff * s1 - s2;
+                    s2 = s1;
+                    s1 = s0;
                 }
+
+                let power = s1 * s1 + s2 * s2 - coeff * s1 * s2;
+                bands[i] = (power / n).sqrt().min(1.0);
             }
-            
-            let _ = app.emit("audio-level", rms);
+
+            // Emit combined audio data: [rms, band0, band1, ..., band6]
+            let payload: Vec<f32> = std::iter::once(rms)
+                .chain(bands.iter().copied())
+                .collect();
+            let _ = app.emit("audio-level", payload);
         }
     }
 }

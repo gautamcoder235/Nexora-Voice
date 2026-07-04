@@ -6,10 +6,13 @@ type OverlayState = "idle" | "listening" | "transcribing";
 
 const BAR_COUNT     = 7;
 const MIN_H         = 3;    // px resting
-const MAX_H         = 26;   // px peak
-const PHASE         = [0.88, 1.12, 0.78, 1.0, 0.82, 1.18, 0.94];
-// How many frames of silence before we hide bars (120 frames @ 60fps = 2.0s VAD hold)
-const SILENCE_FRAMES = 120;
+const MAX_H         = 28;   // px peak
+// How many frames of silence before we hide bars (100 frames @ 60fps ≈ 1.7s VAD hold)
+const SILENCE_FRAMES = 100;
+
+// Spring physics constants
+const SPRING_TENSION  = 0.18;   // How fast bars snap to target
+const SPRING_DAMPING  = 0.72;   // Damping factor (0 = no damping, 1 = overdamped)
 
 export const RecordingOverlay: React.FC = () => {
   const [overlayState, setOverlayState] = useState<OverlayState>("idle");
@@ -22,8 +25,11 @@ export const RecordingOverlay: React.FC = () => {
 
   // Animation state (all in refs, never cause re-renders)
   const rmsRef       = useRef(0);
-  const smoothRef    = useRef(0);
+  const bandsRef     = useRef<number[]>(Array(BAR_COUNT).fill(0));
+  const smoothBands  = useRef<number[]>(Array(BAR_COUNT).fill(0));
+  const velocities   = useRef<number[]>(Array(BAR_COUNT).fill(0));
   const noiseRef     = useRef(0);
+  const noiseBands   = useRef<number[]>(Array(BAR_COUNT).fill(0));
   const sampleCount  = useRef(0);
   const silentFrames = useRef(0);
   const barH         = useRef<number[]>(Array(BAR_COUNT).fill(MIN_H));
@@ -31,7 +37,6 @@ export const RecordingOverlay: React.FC = () => {
   const barsVisRef   = useRef(false); // mirrors barsVisible without stale closure
 
   // Guard: only allow "transcribing" state after we've seen "listening" at least once
-  // This prevents stale events from a previous session flashing the dots on open
   const hasBeenListening = useRef(false);
 
   useEffect(() => {
@@ -39,8 +44,11 @@ export const RecordingOverlay: React.FC = () => {
       const msg = event.payload;
       if (msg.startsWith("List")) {
         rmsRef.current      = 0;
-        smoothRef.current   = 0;
+        bandsRef.current    = Array(BAR_COUNT).fill(0);
+        smoothBands.current = Array(BAR_COUNT).fill(0);
+        velocities.current  = Array(BAR_COUNT).fill(0);
         noiseRef.current    = 0;
+        noiseBands.current  = Array(BAR_COUNT).fill(0);
         sampleCount.current = 0;
         silentFrames.current = 0;
         barH.current        = Array(BAR_COUNT).fill(MIN_H);
@@ -49,7 +57,6 @@ export const RecordingOverlay: React.FC = () => {
         hasBeenListening.current = true;
         setOverlayState("listening");
       } else if (msg.startsWith("Trans") && hasBeenListening.current) {
-        // hide bars when transcribing starts — only if we were listening first
         setBarsVisible(false);
         barsVisRef.current = false;
         setOverlayState("transcribing");
@@ -61,43 +68,46 @@ export const RecordingOverlay: React.FC = () => {
       }
     });
 
-    const unlistenAudio = listen<number>("audio-level", (event) => {
-      rmsRef.current = event.payload;
+    const unlistenAudio = listen<number[]>("audio-level", (event) => {
+      const payload = event.payload;
+      // payload = [rms, band0, band1, ..., band6]
+      if (Array.isArray(payload) && payload.length >= 8) {
+        rmsRef.current = payload[0];
+        for (let i = 0; i < BAR_COUNT; i++) {
+          bandsRef.current[i] = payload[i + 1];
+        }
+      } else if (typeof payload === "number") {
+        // Fallback for legacy single-number emission
+        rmsRef.current = payload;
+      }
 
       // Adaptive noise baseline — first 40 samples
       sampleCount.current += 1;
       if (sampleCount.current <= 40) {
         const n = sampleCount.current;
-        noiseRef.current += (event.payload - noiseRef.current) / n;
+        noiseRef.current += (rmsRef.current - noiseRef.current) / n;
+        for (let i = 0; i < BAR_COUNT; i++) {
+          noiseBands.current[i] += (bandsRef.current[i] - noiseBands.current[i]) / n;
+        }
       }
     });
 
     // ─── rAF loop: direct DOM writes, zero React overhead ───────────────
     const animate = () => {
-      const raw   = rmsRef.current;
-      // Gate: require RMS to be 1.25× above baseline before anything shows (higher sensitivity).
-      // Minimum gate of 0.006 ensures quiet speaking in silent rooms still triggers waves.
+      const raw = rmsRef.current;
+      // Gate: require RMS to be 1.25× above baseline
       const floor   = Math.max(noiseRef.current * 1.25, 0.006);
       const cleaned = raw > floor ? raw - floor : 0;
-
-      // Fast attack (0.92), slow decay (0.12)
-      const prev  = smoothRef.current;
-      const coeff = cleaned > prev ? 0.92 : 0.12;
-      const smooth = prev + (cleaned - prev) * coeff;
-      smoothRef.current = smooth;
-
-      // Amplify the signal (24.0 multiplier) so speech triggers waves easily
-      const normalized = Math.min(smooth * 24.0, 1.0);
-      const level      = Math.pow(normalized, 0.55);
+      const level   = Math.min(cleaned * 24.0, 1.0);
 
       // Track silence to auto-hide bars
-      if (level < 0.10) {
+      if (level < 0.05) {
         silentFrames.current = Math.min(silentFrames.current + 1, SILENCE_FRAMES + 1);
       } else {
         silentFrames.current = 0;
       }
 
-      const shouldShowBars = level >= 0.10;
+      const shouldShowBars = level >= 0.05;
 
       // Flip React state only on transition (not every frame)
       if (shouldShowBars && !barsVisRef.current) {
@@ -108,38 +118,61 @@ export const RecordingOverlay: React.FC = () => {
         setBarsVisible(false);
       }
 
-      // Update each bar DOM node directly
-      barH.current = barH.current.map((cur, i) => {
-        const jitter = 0.65 + Math.random() * 0.7;
-        const phased = level * PHASE[i] * jitter;
-        const target = MIN_H + Math.min(phased, 1.0) * (MAX_H - MIN_H);
-        const spd    = target > cur ? 0.92 : 0.08;
-        const next   = cur + (target - cur) * spd;
+      // Update each bar using spring physics driven by its frequency band
+      for (let i = 0; i < BAR_COUNT; i++) {
+        const bandRaw   = bandsRef.current[i];
+        const bandFloor = Math.max(noiseBands.current[i] * 1.25, 0.003);
+        const bandClean = bandRaw > bandFloor ? bandRaw - bandFloor : 0;
+
+        // Amplify and normalize each band
+        const bandLevel = Math.min(bandClean * 28.0, 1.0);
+        const bandPow   = Math.pow(bandLevel, 0.5);
+
+        // Add subtle jitter for organic feel
+        const jitter  = 0.85 + Math.random() * 0.3;
+        const target  = MIN_H + Math.min(bandPow * jitter, 1.0) * (MAX_H - MIN_H);
+
+        // Spring physics: F = -k(x - target) - damping * velocity
+        const displacement = barH.current[i] - target;
+        const springForce  = -SPRING_TENSION * displacement;
+        const dampingForce = -SPRING_DAMPING * velocities.current[i];
+        const acceleration = springForce + dampingForce;
+
+        velocities.current[i] += acceleration;
+        barH.current[i] += velocities.current[i];
+
+        // Clamp
+        barH.current[i] = Math.max(MIN_H, Math.min(MAX_H, barH.current[i]));
 
         const el = barRefs.current[i];
         if (el) {
-          // Colour: cyan at low, shifts purple-ish at high
-          const t  = (next - MIN_H) / (MAX_H - MIN_H);
-          const r  = Math.round(6   + t * 99);
+          // Colour: cyan at low, shifts to vibrant purple at high
+          const t  = (barH.current[i] - MIN_H) / (MAX_H - MIN_H);
+          const r  = Math.round(6   + t * 120);
           const g  = Math.round(182 - t * 96);
           const b  = Math.round(212 + t * 42);
-          el.style.height     = `${next}px`;
+          el.style.height     = `${barH.current[i]}px`;
           el.style.background = `rgb(${r},${g},${b})`;
-          el.style.boxShadow  = t > 0.35
-            ? `0 0 ${3 + t * 7}px rgba(${r},${g},${b},${0.45 + t * 0.45})`
+          // Glow intensity scales with bar height
+          const glowSize = 2 + t * 10;
+          const glowAlpha = 0.3 + t * 0.6;
+          el.style.boxShadow = t > 0.12
+            ? `0 0 ${glowSize}px rgba(${r},${g},${b},${glowAlpha})`
             : "none";
         }
+      }
 
-        return next;
-      });
-
-      // Pulse dot glow with audio level
+      // Sync dot pulse to voice RMS — scale and glow react to loudness
       if (dotRef.current) {
-        const peakT = Math.max(...barH.current.map(h => (h - MIN_H) / (MAX_H - MIN_H)));
-        const gs    = 4 + peakT * 10;
-        const ga    = 0.3 + peakT * 0.5;
+        const voiceLevel = Math.min(level * 1.8, 1.0);
+        // Scale: 1.0 at silence → 1.25 at peak
+        const dotScale = 1.0 + voiceLevel * 0.25;
+        // Glow: subtle at silence → bright at peak
+        const glowSize  = 4 + voiceLevel * 14;
+        const glowAlpha = 0.25 + voiceLevel * 0.6;
+        dotRef.current.style.transform = `scale(${dotScale})`;
         dotRef.current.style.boxShadow =
-          `0 0 ${gs}px #22d3ee, 0 0 ${gs * 2}px rgba(34,211,238,${ga})`;
+          `0 0 ${glowSize}px #22d3ee, 0 0 ${glowSize * 2}px rgba(34,211,238,${glowAlpha})`;
       }
 
       animRef.current = requestAnimationFrame(animate);
@@ -212,11 +245,8 @@ export const RecordingOverlay: React.FC = () => {
           boxShadow    : isTranscribing
             ? "0 0 6px #c084fc, 0 0 14px rgba(192,132,252,0.4)"
             : "0 0 6px #22d3ee, 0 0 12px rgba(34,211,238,0.35)",
-          animation    : isListening || isTranscribing
-            ? "pulse-dot 1.6s ease-in-out infinite"
-            : "none",
           flexShrink   : 0,
-          transition   : "background 0.2s",
+          transition   : "background 0.2s, transform 0.08s ease-out",
         }}
       />
 
@@ -244,7 +274,7 @@ export const RecordingOverlay: React.FC = () => {
               height       : `${MIN_H}px`,
               borderRadius : 3,
               background   : "#06b6d4",
-              // No CSS transition — rAF drives height directly
+              // No CSS transition — spring physics drives height directly
             }}
           />
         ))}
@@ -281,10 +311,6 @@ export const RecordingOverlay: React.FC = () => {
       </div>
 
       <style>{`
-        @keyframes pulse-dot {
-          0%, 100% { transform: scale(1);   opacity: 1; }
-          50%       { transform: scale(0.82); opacity: 0.75; }
-        }
         @keyframes processing-ripple {
           0%   { transform: scaleY(0.3); opacity: 0.4; }
           100% { transform: scaleY(1.3); opacity: 1; }
