@@ -512,21 +512,6 @@ export const OverviewDashboard: React.FC = () => {
                   }}
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0, flexGrow: 1 }}>
-                    <div style={{
-                      width: 26,
-                      height: 26,
-                      borderRadius: "50%",
-                      background: "linear-gradient(135deg, #0284c7, #0ea5e9)",
-                      color: "#fff",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      boxShadow: "0 0 6px rgba(14, 165, 233, 0.3)",
-                      flexShrink: 0,
-                      userSelect: "none"
-                    }}>
-                      <FileText className="h-3.5 w-3.5" />
-                    </div>
                     
                     <span style={{ fontSize: 11, color: "#3b82f6", fontWeight: 600, fontFamily: "monospace", flexShrink: 0 }}>
                       {formatTimeOnly(item.timestamp)}
