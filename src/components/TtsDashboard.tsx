@@ -160,7 +160,6 @@ export const TtsDashboard: React.FC = () => {
     }
 
     const assetUrl = convertFileSrc(log.file_path);
-    setAudioUrl(assetUrl);
     setPlayingId(log.id);
     setActivePlayerText(`Synthesized Speech: ${log.text.slice(0, 40)}...`);
 

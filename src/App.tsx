@@ -43,9 +43,6 @@ function App() {
       const s = await invoke<any>("get_settings");
       if (s) {
         setSettings(s);
-        if (s.model_size) {
-          setModelSize(s.model_size);
-        }
         if (typeof s.custom_instructions === "string") {
           setCustomInstructions(s.custom_instructions);
         }
