@@ -126,15 +126,16 @@ export const HistoryView: React.FC = () => {
             </span>
           </div>
         ) : (
-          history.map((item) => (
+          history.map((item, idx) => (
             <div
               key={item.id}
-              className="glass-panel"
+              className="glass-panel animate-row-in"
               style={{
                 display: "flex",
                 flexDirection: "column",
                 gap: 12,
-                padding: "16px 20px"
+                padding: "16px 20px",
+                animationDelay: `${idx * 0.04}s`,
               }}
             >
               {/* Badges bar */}

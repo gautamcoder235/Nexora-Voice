@@ -507,6 +507,7 @@ export const OverviewDashboard: React.FC = () => {
               filteredHistory.slice(0, 5).map((item, idx) => (
                 <div
                   key={item.id}
+                  className="animate-row-in"
                   style={{
                     display: "flex",
                     justifyContent: "space-between",
@@ -516,7 +517,8 @@ export const OverviewDashboard: React.FC = () => {
                     border: "1px solid rgba(255,255,255,0.03)",
                     borderRadius: "10px",
                     marginBottom: idx === Math.min(history.length, 5) - 1 ? 0 : 8,
-                    gap: 16
+                    gap: 16,
+                    animationDelay: `${idx * 0.04}s`,
                   }}
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0, flexGrow: 1 }}>

@@ -215,68 +215,64 @@ export const RecordingOverlay: React.FC = () => {
       />
 
       {/* ── Audio bars — fade in when voice detected, fade out on silence ── */}
-      {isListening && (
-        <div style={{
-          display       : "flex",
-          alignItems    : "center",
-          gap           : "2.5px",
-          height        : "100%",
-          paddingTop    : 7,
-          paddingBottom : 7,
-          boxSizing     : "border-box",
-          flexShrink    : 0,
-          width         : visualExpanded ? "36px" : "0px",
-          opacity       : visualExpanded ? 1 : 0,
-          overflow      : "hidden",
-          transition    : "width 0.28s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s ease",
-        }}>
-          {Array.from({ length: BAR_COUNT }, (_, i) => (
-            <div
-              key={i}
-              ref={el => { barRefs.current[i] = el; }}
-              style={{
-                width        : 3,
-                height       : `${MIN_H}px`,
-                borderRadius : 3,
-                background   : "#06b6d4",
-                // No CSS transition — rAF drives height directly
-              }}
-            />
-          ))}
-        </div>
-      )}
+      <div style={{
+        display       : "flex",
+        alignItems    : "center",
+        gap           : "2.5px",
+        height        : "100%",
+        paddingTop    : 7,
+        paddingBottom : 7,
+        boxSizing     : "border-box",
+        flexShrink    : 0,
+        width         : (isListening && visualExpanded) ? "36px" : "0px",
+        opacity       : (isListening && visualExpanded) ? 1 : 0,
+        overflow      : "hidden",
+        transition    : "width 0.28s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s ease, gap 0.22s ease",
+      }}>
+        {Array.from({ length: BAR_COUNT }, (_, i) => (
+          <div
+            key={i}
+            ref={el => { barRefs.current[i] = el; }}
+            style={{
+              width        : 3,
+              height       : `${MIN_H}px`,
+              borderRadius : 3,
+              background   : "#06b6d4",
+              // No CSS transition — rAF drives height directly
+            }}
+          />
+        ))}
+      </div>
 
       {/* ── Transcribing: Rippling voice data print ── */}
-      {isTranscribing && (
-        <div style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "2.5px",
-          height: "100%",
-          paddingTop: 8,
-          paddingBottom: 8,
-          boxSizing: "border-box",
-          flexShrink: 0,
-          width         : visualExpanded ? "36px" : "0px",
-          opacity       : visualExpanded ? 1 : 0,
-          overflow      : "hidden",
-          transition    : "width 0.28s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s ease",
-        }}>
-          {Array.from({ length: 7 }, (_, i) => (
-            <div
-              key={i}
-              style={{
-                width: 3,
-                height: "18px",
-                borderRadius: 2,
-                background: "linear-gradient(to top, #c084fc, #6366f1)",
-                animation: `processing-ripple 0.9s ease-in-out ${i * 0.1}s infinite alternate`,
-                boxShadow: "0 0 6px rgba(192, 132, 252, 0.4)",
-              }}
-            />
-          ))}
-        </div>
-      )}
+      <div style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "2.5px",
+        height: "100%",
+        paddingTop: 8,
+        paddingBottom: 8,
+        boxSizing: "border-box",
+        flexShrink: 0,
+        width         : (isTranscribing && visualExpanded) ? "36px" : "0px",
+        opacity       : (isTranscribing && visualExpanded) ? 1 : 0,
+        overflow      : "hidden",
+        transition    : "width 0.28s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s ease, gap 0.22s ease",
+      }}>
+        {Array.from({ length: 7 }, (_, i) => (
+          <div
+            key={i}
+            style={{
+              width: 3,
+              height: "18px",
+              borderRadius: 2,
+              background: "linear-gradient(to top, #c084fc, #6366f1)",
+              animation: `processing-ripple 0.9s ease-in-out ${i * 0.1}s infinite alternate`,
+              boxShadow: "0 0 6px rgba(192, 132, 252, 0.4)",
+            }}
+          />
+        ))}
+      </div>
 
       <style>{`
         @keyframes pulse-dot {

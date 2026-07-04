@@ -342,32 +342,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onDone }) => {
         </div>
       </div>
 
-      {/* ── Bottom footer ────────────────────────────────────────── */}
-      <div style={{
-        position      : "absolute",
-        bottom        : 24,
-        display       : "flex",
-        alignItems    : "center",
-        gap           : 8,
-        opacity       : barReady ? 0.22 : 0,
-        transition    : "opacity 0.8s 0.4s ease",
-      }}>
-        <div style={{
-          width: 14, height: 14, borderRadius: 4,
-          background: "linear-gradient(135deg, #06b6d4, #818cf8)",
-          display: "flex", alignItems: "center", justifyContent: "center",
-        }}>
-          <span style={{ fontSize: 8, fontWeight: 900, color: "#fff" }}>N</span>
-        </div>
-        <span style={{
-          fontSize     : 10,
-          fontFamily   : "'JetBrains Mono', monospace",
-          letterSpacing: "0.08em",
-          color        : "rgba(148,163,184,1)",
-        }}>
-          Nexora Labs · v0.9.0
-        </span>
-      </div>
+
 
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@700;800&display=swap');

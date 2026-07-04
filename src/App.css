@@ -1004,3 +1004,23 @@ body {
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* Premium Animations System Integration */
+.btn-primary:active:not(:disabled),
+.btn-glass:active:not(:disabled),
+.btn-download:active:not(:disabled),
+.btn-cyan:active:not(:disabled),
+.refresh-status-btn:active,
+.sidebar-nav button:active {
+  transform: scale(0.96) !important;
+}
+
+.animate-row-in {
+  opacity: 0;
+  animation: rowFadeIn 0.24s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes rowFadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+

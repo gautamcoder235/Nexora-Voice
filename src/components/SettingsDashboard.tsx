@@ -189,8 +189,22 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
     filter_hallucinations: true
   });
 
+  const [originalSettings, setOriginalSettings] = useState<AppSettings | null>(null);
+  const hasChanges = originalSettings !== null && JSON.stringify(settings) !== JSON.stringify(originalSettings);
+
   const [modelsStatus, setModelsStatus] = useState<ModelsStatusMap>({});
   const [isLoadingSettings, setIsLoadingSettings] = useState<boolean>(true);
+  const [showSpinner, setShowSpinner] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (isLoadingSettings) {
+      const timer = setTimeout(() => setShowSpinner(true), 150);
+      return () => clearTimeout(timer);
+    } else {
+      setShowSpinner(false);
+    }
+  }, [isLoadingSettings]);
+
   const [isRefreshingStatus, setIsRefreshingStatus] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [loadingModelKey, setLoadingModelKey] = useState<string | null>(null);
@@ -223,9 +237,9 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
       }
       setErrorMsg(null);
       
-      // Settings are stored locally, always available
       const s = await invoke<AppSettings>("get_settings");
       setSettings(s);
+      setOriginalSettings(s);
 
       // Fetch history, always available
       try {
@@ -340,6 +354,7 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
     setSuccessMsg(null);
     try {
       await invoke("update_settings", { settings });
+      setOriginalSettings(settings);
       setSuccessMsg("Settings saved and global hotkey registered successfully!");
       setTimeout(() => setSuccessMsg(null), 3000);
     } catch (err: any) {
@@ -384,6 +399,17 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
       setLoadingModelKey(null);
     }
   };
+
+  const handleRestoreRecommended = () => {
+    setSettings(prev => ({
+      ...prev,
+      format_mode: "none",
+      injection_method: "paste",
+      streaming_mode: true,
+      filter_hallucinations: false
+    }));
+  };
+
   const formatTimeOnly = (ts: string) => {
     try {
       const parts = ts.split(" ");
@@ -410,7 +436,7 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
     return `${Math.round((ms || 0) / 1000)}s`;
   };
 
-  if (isLoadingSettings) {
+  if (showSpinner) {
     return (
       <div className="loading-container">
         <div className="loader-blob" />
@@ -676,11 +702,26 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
               </div>
 
               {/* Submit Save button */}
-              <div className="form-actions">
+              <div className="form-actions" style={{ display: "flex", gap: 12, justifyContent: "flex-end", marginTop: 20 }}>
+                <button
+                  type="button"
+                  onClick={handleRestoreRecommended}
+                  className="btn-glass"
+                  style={{ 
+                    padding: "12px 20px", 
+                    fontSize: "13px", 
+                    fontWeight: 600,
+                    borderRadius: "12px",
+                    cursor: "pointer"
+                  }}
+                >
+                  Restore Defaults (Recommended)
+                </button>
                 <button
                   type="submit"
-                  disabled={isSaving}
+                  disabled={isSaving || !hasChanges}
                   className="btn-primary"
+                  style={{ margin: 0 }}
                 >
                   {isSaving ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
