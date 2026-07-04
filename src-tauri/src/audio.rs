@@ -180,7 +180,7 @@ where
 
             // 3. Compute 7 frequency band energies using Goertzel's algorithm
             let sr = state.native_sample_rate as f32;
-            let target_freqs: [f32; 7] = [100.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0, 6000.0];
+            let target_freqs: [f32; 7] = [150.0, 300.0, 500.0, 1000.0, 2000.0, 4000.0, 6000.0];
             let mut bands: [f32; 7] = [0.0; 7];
             let n = cleaned_samples.len() as f32;
 
@@ -188,7 +188,7 @@ where
                 let k = (freq * n / sr).round();
                 let omega = 2.0 * std::f32::consts::PI * k / n;
                 let coeff = 2.0 * omega.cos();
-                let mut s0: f32 = 0.0;
+                let mut s0: f32;
                 let mut s1: f32 = 0.0;
                 let mut s2: f32 = 0.0;
 

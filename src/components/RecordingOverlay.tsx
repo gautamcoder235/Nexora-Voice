@@ -120,13 +120,18 @@ export const RecordingOverlay: React.FC = () => {
 
       // Update each bar using spring physics driven by its frequency band
       for (let i = 0; i < BAR_COUNT; i++) {
-        const bandRaw   = bandsRef.current[i];
+        // Blend each band with its neighbors (30% influence) to prevent binary snapping
+        const prev = i > 0 ? bandsRef.current[i - 1] : bandsRef.current[i];
+        const curr = bandsRef.current[i];
+        const next = i < BAR_COUNT - 1 ? bandsRef.current[i + 1] : bandsRef.current[i];
+        const bandRaw = curr * 0.6 + prev * 0.2 + next * 0.2;
+
         const bandFloor = Math.max(noiseBands.current[i] * 1.25, 0.003);
         const bandClean = bandRaw > bandFloor ? bandRaw - bandFloor : 0;
 
-        // Amplify and normalize each band
+        // Amplify and normalize — softer power curve (0.65) creates more mid-range values
         const bandLevel = Math.min(bandClean * 28.0, 1.0);
-        const bandPow   = Math.pow(bandLevel, 0.5);
+        const bandPow   = Math.pow(bandLevel, 0.65);
 
         // Add subtle jitter for organic feel
         const jitter  = 0.85 + Math.random() * 0.3;
