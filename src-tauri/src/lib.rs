@@ -166,6 +166,14 @@ pub fn run() {
                 eprintln!("Failed to register global shortcut: {}", e);
             }
             
+            // If the application was not started minimized (e.g. not launched at boot), show the main window
+            let args: Vec<String> = std::env::args().collect();
+            if !args.contains(&"--minimized".to_string()) {
+                if let Some(win) = app.get_webview_window("main") {
+                    let _ = win.show();
+                }
+            }
+            
             // Global Shortcut Listener
             let app_h2 = app.handle().clone();
             app.listen("global-shortcut-triggered", move |event| {
@@ -378,10 +386,10 @@ pub fn run() {
             Ok(())
         })
         .on_window_event(|window, event| {
-            if let tauri::WindowEvent::CloseRequested { .. } = event {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 if window.label() == "main" {
-                    let app_handle = window.app_handle();
-                    app_handle.exit(0);
+                    api.prevent_close();
+                    let _ = window.hide();
                 }
             }
         })

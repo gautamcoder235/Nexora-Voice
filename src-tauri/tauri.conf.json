@@ -20,7 +20,8 @@
         "minHeight": 650,
         "center": true,
         "resizable": true,
-        "decorations": false
+        "decorations": false,
+        "visible": false
       },
       {
         "label": "overlay",
