@@ -828,9 +828,7 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
                     <CustomSelect
                       value={settings.whisper_language ?? "auto"}
                       onChange={(val) => {
-                        const updated = { ...settings, whisper_language: val };
-                        setSettings(updated);
-                        invoke("update_settings", { settings: updated }).catch(console.error);
+                        setSettings({ ...settings, whisper_language: val });
                       }}
                       options={[
                         { value: "auto", label: "Auto-detect (adds ~200ms detection overhead)" },
@@ -860,9 +858,7 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
                     <CustomSelect
                       value={settings.autostart ? "true" : "false"}
                       onChange={(val) => {
-                        const updated = { ...settings, autostart: val === "true" };
-                        setSettings(updated);
-                        autoSaveSettings(updated).catch(console.error);
+                        setSettings({ ...settings, autostart: val === "true" });
                       }}
                       options={[
                         { value: "true", label: "Enabled (Launches Nexora on PC startup)" },
