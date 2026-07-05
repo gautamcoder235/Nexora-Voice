@@ -166,11 +166,11 @@ pub fn run() {
                 eprintln!("Failed to register global shortcut: {}", e);
             }
             
-            // If the application was not started minimized (e.g. not launched at boot), show the main window
+            // If the application was started minimized (launched at boot), hide the main window immediately
             let args: Vec<String> = std::env::args().collect();
-            if !args.contains(&"--minimized".to_string()) {
+            if args.contains(&"--minimized".to_string()) {
                 if let Some(win) = app.get_webview_window("main") {
-                    let _ = win.show();
+                    let _ = win.hide();
                 }
             }
             
