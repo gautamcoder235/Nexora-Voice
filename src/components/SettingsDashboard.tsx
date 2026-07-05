@@ -20,6 +20,7 @@ import {
   ChevronDown,
   Globe
 } from "lucide-react";
+import { enable as enableAutostart, disable as disableAutostart, isEnabled as isAutostartEnabled } from "@tauri-apps/plugin-autostart";
 
 interface AppSettings {
   model_size: string;
@@ -34,6 +35,7 @@ interface AppSettings {
   filter_hallucinations: boolean;
   mic_device?: string;
   whisper_language?: string;
+  autostart: boolean;
 }
 
 interface ModelStatus {
@@ -290,7 +292,8 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
     streaming_mode: false,
     filter_hallucinations: true,
     mic_device: "Default",
-    whisper_language: "auto"
+    whisper_language: "auto",
+    autostart: false
   });
 
   const [originalSettings, setOriginalSettings] = useState<AppSettings | null>(null);
@@ -356,6 +359,14 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
       setErrorMsg(null);
       
       const s = await invoke<AppSettings>("get_settings");
+      // Check autostart status from OS
+      try {
+        const autostartActive = await isAutostartEnabled();
+        s.autostart = autostartActive;
+      } catch (e) {
+        console.warn("Failed to check autostart state:", e);
+      }
+
       setSettings(s);
       setOriginalSettings(s);
       if (s.mic_device) {
@@ -480,6 +491,13 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
     setErrorMsg(null);
     setSuccessMsg(null);
     try {
+      // Sync autostart plugin state
+      if (settings.autostart) {
+        await enableAutostart();
+      } else {
+        await disableAutostart();
+      }
+
       await invoke("update_settings", { settings });
       setOriginalSettings(settings);
       setSuccessMsg("Settings saved and global hotkey registered successfully!");
@@ -495,6 +513,11 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
 
   const autoSaveSettings = async (updatedSettings: AppSettings) => {
     try {
+      if (updatedSettings.autostart) {
+        await enableAutostart();
+      } else {
+        await disableAutostart();
+      }
       await invoke("update_settings", { settings: updatedSettings });
       setOriginalSettings(updatedSettings);
     } catch (err) {
@@ -826,6 +849,27 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
                       ]}
                     />
                     <p className="input-help">Locking to a specific language speeds up transcription by ~15–20% and eliminates cross-language hallucinations. Leave on Auto-detect for multilingual environments.</p>
+                  </div>
+
+                  {/* Auto-Start at Boot */}
+                  <div className="input-group" style={{ gridColumn: "1 / -1" }}>
+                    <label className="input-label">
+                      <Zap className="h-4 w-4 text-cyan-400" />
+                      <span>Start Nexora Voice on System Boot</span>
+                    </label>
+                    <CustomSelect
+                      value={settings.autostart ? "true" : "false"}
+                      onChange={(val) => {
+                        const updated = { ...settings, autostart: val === "true" };
+                        setSettings(updated);
+                        autoSaveSettings(updated).catch(console.error);
+                      }}
+                      options={[
+                        { value: "true", label: "Enabled (Launches Nexora on PC startup)" },
+                        { value: "false", label: "Disabled" }
+                      ]}
+                    />
+                    <p className="input-help">Automatically launch Nexora Voice minimized in the system tray when your computer boots up.</p>
                   </div>
                 </div>
               </div>

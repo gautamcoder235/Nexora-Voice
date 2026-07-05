@@ -20,6 +20,7 @@ pub struct AppSettings {
     pub filter_hallucinations: bool,
     pub mic_device: String,
     pub whisper_language: String,
+    pub autostart: bool,
 }
 
 impl Default for AppSettings {
@@ -37,6 +38,7 @@ impl Default for AppSettings {
             filter_hallucinations: true,
             mic_device: "Default".to_string(),
             whisper_language: "en".to_string(),
+            autostart: false,
         }
     }
 }

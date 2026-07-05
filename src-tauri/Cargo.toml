@@ -37,4 +37,5 @@ uuid = { version = "1", features = ["v4"] }
 chrono = { version = "0.4", features = ["serde"] }
 whisper-rs = { version = "0.16.0", features = ["vulkan"] }
 futures-util = "0.3.32"
+tauri-plugin-autostart = "2"
 

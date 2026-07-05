@@ -21,6 +21,9 @@
     "core:window:allow-set-position",
     "global-shortcut:allow-register",
     "global-shortcut:allow-is-registered",
-    "shell:allow-open"
+    "shell:allow-open",
+    "autostart:allow-enable",
+    "autostart:allow-disable",
+    "autostart:allow-is-enabled"
   ]
 }
