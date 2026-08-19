@@ -16,6 +16,7 @@ pub struct HistoryEntry {
     pub elapsed_ms: u32,
     pub mode: String, // "Standard" or "Streaming"
     pub audio_duration_ms: u32,
+    pub model: String,
 }
 
 impl Default for HistoryEntry {
@@ -27,6 +28,7 @@ impl Default for HistoryEntry {
             elapsed_ms: 0,
             mode: "Standard".to_string(),
             audio_duration_ms: 0,
+            model: "".to_string(),
         }
     }
 }
@@ -61,7 +63,7 @@ pub fn save_history(app: &AppHandle, history: &[HistoryEntry]) -> Result<(), Str
     Ok(())
 }
 
-pub fn add_history_entry(app: &AppHandle, text: &str, elapsed_ms: u32, audio_duration_ms: u32, mode: &str) {
+pub fn add_history_entry(app: &AppHandle, text: &str, elapsed_ms: u32, audio_duration_ms: u32, mode: &str, model: &str) {
     if text.trim().is_empty() {
         return;
     }
@@ -73,6 +75,7 @@ pub fn add_history_entry(app: &AppHandle, text: &str, elapsed_ms: u32, audio_dur
         elapsed_ms,
         mode: mode.to_string(),
         audio_duration_ms,
+        model: model.to_string(),
     };
     // Keep last 100 items to prevent history.json from bloating
     history.insert(0, entry);

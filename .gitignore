@@ -27,3 +27,6 @@ dist-ssr
 libs/
 models/
 src-tauri/target/
+desktop.ini
+*.tmp
+

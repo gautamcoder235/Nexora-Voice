@@ -8,7 +8,9 @@ use tauri::Manager;
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(default)]
 pub struct AppSettings {
-    pub model_size: String,
+    pub mode: String,
+    pub model: String,
+    pub model_size: String, // Kept for legacy backward compatibility
     pub format_mode: String,
     pub hotkey: String,
     pub cancel_hotkey: String,
@@ -21,12 +23,15 @@ pub struct AppSettings {
     pub mic_device: String,
     pub whisper_language: String,
     pub autostart: bool,
+    pub overlay_theme: String,
 }
 
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
-            model_size: "small".to_string(),
+            mode: "balanced".to_string(),
+            model: "ggml-large-v3-turbo.bin".to_string(),
+            model_size: "balanced".to_string(),
             format_mode: "none".to_string(),
             hotkey: "Control+Alt+V".to_string(), // Default hotkey
             cancel_hotkey: "Escape".to_string(),
@@ -37,8 +42,9 @@ impl Default for AppSettings {
             streaming_mode: false,
             filter_hallucinations: true,
             mic_device: "Default".to_string(),
-            whisper_language: "en".to_string(),
+            whisper_language: "auto".to_string(),
             autostart: false,
+            overlay_theme: "dark".to_string(),
         }
     }
 }
@@ -50,19 +56,62 @@ pub fn get_settings_path(app: &AppHandle) -> Result<PathBuf, String> {
 }
 
 pub fn load_settings(app: &AppHandle) -> AppSettings {
-    if let Ok(path) = get_settings_path(app) {
+    let settings = if let Ok(path) = get_settings_path(app) {
         if path.exists() {
-            if let Ok(mut file) = File::open(path) {
+            if let Ok(mut file) = File::open(&path) {
                 let mut contents = String::new();
                 if file.read_to_string(&mut contents).is_ok() {
-                    if let Ok(settings) = serde_json::from_str::<AppSettings>(&contents) {
-                        return settings;
+                    if let Ok(mut parsed) = serde_json::from_str::<AppSettings>(&contents) {
+                        // Check if we need to migrate
+                        let needs_migration = parsed.mode.is_empty() 
+                            || parsed.model.is_empty() 
+                            || !["fast", "balanced", "lightweight"].contains(&parsed.model_size.as_str());
+
+                        if needs_migration {
+                            println!("[Settings] Migrating legacy configuration...");
+                            let old_size = if !parsed.model_size.is_empty() {
+                                parsed.model_size.clone()
+                            } else {
+                                "small".to_string()
+                            };
+
+                            match old_size.as_str() {
+                                "tiny" | "distil-large-v3" | "fast" => {
+                                    parsed.mode = "fast".to_string();
+                                    parsed.model = "ggml-distil-large-v3.bin".to_string();
+                                }
+                                "accurate" | "large-v3" | "medium" | "balanced" | "large-v3-turbo" => {
+                                    parsed.mode = "balanced".to_string();
+                                    parsed.model = "ggml-large-v3-turbo.bin".to_string();
+                                }
+                                "small" | "base" | "lightweight" => {
+                                    parsed.mode = "lightweight".to_string();
+                                    parsed.model = "ggml-small.en.bin".to_string();
+                                }
+                                _ => {
+                                    parsed.mode = "balanced".to_string();
+                                    parsed.model = "ggml-large-v3-turbo.bin".to_string();
+                                }
+                            }
+                            
+                            parsed.model_size = parsed.mode.clone();
+                            let _ = save_settings(app, &parsed);
+                        } else {
+                            parsed.model_size = parsed.mode.clone();
+                        }
+                        return parsed;
                     }
                 }
             }
         }
-    }
-    AppSettings::default()
+        AppSettings::default()
+    } else {
+        AppSettings::default()
+    };
+
+    // Save immediately for new configurations or failed parses
+    let _ = save_settings(app, &settings);
+    settings
 }
 
 pub fn save_settings(app: &AppHandle, settings: &AppSettings) -> Result<(), String> {

@@ -24,6 +24,7 @@ pub fn update_settings(app: AppHandle, settings: AppSettings) -> Result<(), Stri
     // Reload shortcuts
     use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut};
     use std::str::FromStr;
+    use tauri::Emitter;
     
     let _ = app.global_shortcut().unregister_all();
     
@@ -31,6 +32,8 @@ pub fn update_settings(app: AppHandle, settings: AppSettings) -> Result<(), Stri
     if let Ok(s) = Shortcut::from_str(&settings.cancel_hotkey) { let _ = app.global_shortcut().register(s); }
     if let Ok(s) = Shortcut::from_str(&settings.settings_hotkey) { let _ = app.global_shortcut().register(s); }
     if let Ok(s) = Shortcut::from_str(&settings.format_hotkey) { let _ = app.global_shortcut().register(s); }
+    
+    let _ = app.emit("settings-changed", &settings);
     
     Ok(())
 }
@@ -73,7 +76,7 @@ pub async fn stop_recording(
     if !formatted_text.is_empty() {
         inject_text(&formatted_text, &settings.injection_method)?;
         let audio_duration_ms = (samples.len() as f32 / 16.0) as u32;
-        crate::history::add_history_entry(&app, &formatted_text, elapsed_ms, audio_duration_ms, "Standard");
+        crate::history::add_history_entry(&app, &formatted_text, elapsed_ms, audio_duration_ms, "Standard", &settings.model_size);
     }
 
     Ok(formatted_text)
@@ -101,19 +104,35 @@ pub async fn get_models_status(
     model_manager: State<'_, ModelManager>,
     whisper: State<'_, WhisperService>
 ) -> Result<std::collections::HashMap<String, ModelInfo>, String> {
-    let allowed_models = vec!["tiny", "base", "small", "medium", "large-v3-turbo"];
     let mut status = std::collections::HashMap::new();
-    
     let active_model = whisper.active_model.lock().unwrap().clone();
     
-    for m in allowed_models {
-        status.insert(m.to_string(), ModelInfo {
-            cached: model_manager.is_model_cached(m),
-            active: m == active_model,
+    for entry in crate::model_manager::MODEL_REGISTRY {
+        status.insert(entry.key.to_string(), ModelInfo {
+            cached: model_manager.is_model_cached(entry.key),
+            active: entry.key == active_model,
         });
     }
     
     Ok(status)
+}
+
+#[tauri::command]
+pub async fn delete_model(
+    model_key: String,
+    model_manager: State<'_, ModelManager>,
+    whisper: State<'_, WhisperService>
+) -> Result<(), String> {
+    let active_model = whisper.active_model.lock().unwrap().clone();
+    if active_model == model_key {
+        return Err("Cannot delete the currently active model. Please switch to another model first.".to_string());
+    }
+
+    let path = model_manager.get_model_path(&model_key);
+    if path.exists() {
+        std::fs::remove_file(path).map_err(|e| format!("Failed to delete model file: {}", e))?;
+    }
+    Ok(())
 }
 
 #[tauri::command]

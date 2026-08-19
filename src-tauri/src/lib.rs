@@ -3,9 +3,10 @@ mod chunked_recorder;
 mod commands;
 mod history;
 mod injector;
-mod settings;
+pub mod settings;
 pub mod whisper_service;
 pub mod model_manager;
+pub mod transcript_assembler;
 
 use tauri::{Manager, Emitter, Listener};
 use tauri::menu::{Menu, MenuItem};
@@ -22,6 +23,7 @@ use chunked_recorder::ChunkedRecorder;
 use settings::load_settings;
 use whisper_service::WhisperService;
 use model_manager::ModelManager;
+use transcript_assembler::TranscriptAssembler;
 
 fn setup_global_shortcut(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     let app_handle = app.handle();
@@ -82,6 +84,7 @@ pub fn run() {
             
             app.manage(AudioRecorder::new());
             app.manage(ChunkedRecorder::new());
+            app.manage(TranscriptAssembler::new());
             
             // Load the user's configured model on startup if cached
             let settings = crate::settings::load_settings(&app_handle);
@@ -221,8 +224,6 @@ pub fn run() {
                         return;
                     }
                     
-                    // toggle_dictation logic
-                    
                     if settings.streaming_mode {
                         let is_recording = app_h.state::<ChunkedRecorder>().is_recording();
                         
@@ -238,11 +239,15 @@ pub fn run() {
                             if let Some(overlay) = app_h.get_webview_window("overlay") {
                                 let _ = overlay.emit("status-change", "Listening...");
                                 let _ = overlay.show();
+                                let _ = overlay.set_always_on_top(true);
                             }
                             if let Err(e) = app_h.state::<ChunkedRecorder>().start(app_h.clone()) {
                                 eprintln!("Failed to start chunked recorder: {}", e);
                                 return;
                             }
+
+                            // Reset the assembler for a new session
+                            app_h.state::<TranscriptAssembler>().reset();
 
                             // Spawn background timer to drain chunks every 5s
                             let app_h_loop = app_h.clone();
@@ -260,20 +265,19 @@ pub fn run() {
                                         let lang = loop_lang.clone();
 
                                         tauri::async_runtime::spawn(async move {
-                                            let whisper = app_h_api.state::<WhisperService>();
-                                            let chunked_recorder_api = app_h_api.state::<ChunkedRecorder>();
-                                            
-                                            // Process directly from RAM!
-                                            match whisper.transcribe(&chunk_samples, loop_filter, &lang) {
-                                                Ok(text) => {
-                                                    if !text.is_empty() {
-                                                        chunked_recorder_api.add_partial(idx, text);
-                                                    }
-                                                }
-                                                Err(e) => {
-                                                    eprintln!("Failed to transcribe chunk {}: {}", idx, e);
-                                                }
-                                            }
+                                             let whisper = app_h_api.state::<WhisperService>();
+                                             let assembler = app_h_api.state::<TranscriptAssembler>();
+                                             
+                                             // Process directly from RAM!
+                                             match whisper.transcribe(&chunk_samples, loop_filter, &lang) {
+                                                 Ok(text) => {
+                                                     assembler.submit(idx, text);
+                                                 }
+                                                 Err(e) => {
+                                                     eprintln!("Failed to transcribe chunk {}: {}", idx, e);
+                                                     assembler.submit(idx, String::new()); // Submit empty to avoid blocking queue
+                                                 }
+                                             }
                                         });
                                     }
                                 }
@@ -285,7 +289,7 @@ pub fn run() {
                                 let _ = overlay.emit("status-change", "Transcribing...");
                             }
 
-                            let (remaining, mut partials, tail_idx, elapsed_ms) = match app_h.state::<ChunkedRecorder>().stop() {
+                            let (remaining, tail_idx, elapsed_ms) = match app_h.state::<ChunkedRecorder>().stop() {
                                 Ok(data) => data,
                                 Err(e) => {
                                     eprintln!("Failed to stop chunked recorder: {}", e);
@@ -300,27 +304,31 @@ pub fn run() {
                             let app_h_clone = app_h.clone();
                             tauri::async_runtime::spawn(async move {
                                 let whisper = app_h_clone.state::<WhisperService>();
+                                let assembler = app_h_clone.state::<TranscriptAssembler>();
                                 let process_start = std::time::Instant::now();
 
                                 // Transcribe remaining tail audio directly from RAM
                                 if remaining.len() >= 1600 {
                                     match whisper.transcribe(&remaining, settings.filter_hallucinations, &settings.whisper_language) {
                                         Ok(text) => {
-                                            if !text.is_empty() {
-                                                partials.push((tail_idx, text));
-                                            }
+                                            assembler.submit(tail_idx, text);
                                         }
                                         Err(e) => {
                                             eprintln!("Failed to transcribe tail chunk: {}", e);
+                                            assembler.submit(tail_idx, String::new()); // Submit empty to avoid blocking
                                         }
                                     }
+                                } else {
+                                    assembler.submit(tail_idx, String::new()); // Submit empty to avoid blocking
                                 }
 
-                                // Sort by chunk index
-                                partials.sort_by_key(|(idx, _)| *idx);
+                                // Wait until all chunks (0..=tail_idx) are submitted and processed in order
+                                while !assembler.is_complete(tail_idx) {
+                                    tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+                                }
 
-                                // Merge and deduplicate overlapping words
-                                let full_text = deduplicate_overlap(partials);
+                                // Retrieve the final continuous assembled transcript
+                                let full_text = assembler.get_transcript();
                                 println!("Combined stream output: \"{}\"", full_text);
                                 
                                 let process_elapsed_ms = process_start.elapsed().as_millis() as u32;
@@ -329,7 +337,7 @@ pub fn run() {
                                 let formatted_text = crate::commands::format_text(&full_text, &settings.format_mode);
                                 if !formatted_text.is_empty() {
                                     let _ = crate::injector::inject_text(&formatted_text, &settings.injection_method);
-                                    crate::history::add_history_entry(&app_h_clone, &formatted_text, process_elapsed_ms, elapsed_ms, "Streaming");
+                                    crate::history::add_history_entry(&app_h_clone, &formatted_text, process_elapsed_ms, elapsed_ms, "Streaming", &settings.model_size);
                                 }
 
                                 TRANSCRIBING_LOCK.store(false, Ordering::SeqCst);
@@ -356,6 +364,7 @@ pub fn run() {
                             if let Some(overlay) = app_h.get_webview_window("overlay") {
                                 let _ = overlay.emit("status-change", "Listening...");
                                 let _ = overlay.show();
+                                let _ = overlay.set_always_on_top(true);
                             }
                             let _ = recorder.inner().start(app_h.clone());
                         } else {
@@ -404,55 +413,12 @@ pub fn run() {
             commands::list_microphones,
             commands::get_history,
             commands::clear_history,
+            commands::delete_model,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
 
-fn deduplicate_overlap(partials: Vec<(usize, String)>) -> String {
-    let mut result = String::new();
-    for (i, (_, text)) in partials.iter().enumerate() {
-        let trimmed_text = text.trim();
-        if trimmed_text.is_empty() {
-            continue;
-        }
-        if i == 0 {
-            result = trimmed_text.to_string();
-            continue;
-        }
 
-        let result_words: Vec<&str> = result.split_whitespace().collect();
-        let text_words: Vec<&str> = trimmed_text.split_whitespace().collect();
-
-        let max_overlap = std::cmp::min(12, std::cmp::min(result_words.len(), text_words.len()));
-        let mut best_overlap = 0;
-
-        for overlap_len in 1..=max_overlap {
-            let suffix = &result_words[result_words.len() - overlap_len..];
-            let prefix = &text_words[..overlap_len];
-
-            let mut match_count = 0;
-            for j in 0..overlap_len {
-                let w1 = suffix[j].to_lowercase().trim_matches(|c: char| c.is_ascii_punctuation() || c.is_whitespace()).to_string();
-                let w2 = prefix[j].to_lowercase().trim_matches(|c: char| c.is_ascii_punctuation() || c.is_whitespace()).to_string();
-                if w1 == w2 {
-                    match_count += 1;
-                }
-            }
-            if match_count == overlap_len {
-                best_overlap = overlap_len;
-            }
-        }
-
-        let new_words = &text_words[best_overlap..];
-        if !new_words.is_empty() {
-            if !result.is_empty() {
-                result.push(' ');
-            }
-            result.push_str(&new_words.join(" "));
-        }
-    }
-    result
-}
 
 

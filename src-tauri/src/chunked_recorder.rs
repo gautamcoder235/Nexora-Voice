@@ -14,7 +14,6 @@ pub struct ChunkedState {
     pub native_sample_rate: u32,
     pub native_channels: u16,
     pub chunk_index: usize,
-    pub partial_transcripts: Vec<(usize, String)>,
     pub start_time: Option<std::time::Instant>,
 }
 
@@ -32,7 +31,6 @@ impl ChunkedRecorder {
                 native_sample_rate: 16000,
                 native_channels: 1,
                 chunk_index: 0,
-                partial_transcripts: Vec::new(),
                 start_time: None,
             })),
         }
@@ -45,7 +43,6 @@ impl ChunkedRecorder {
         }
 
         state.samples.clear();
-        state.partial_transcripts.clear();
         state.chunk_index = 0;
         state.start_time = Some(std::time::Instant::now());
         state.is_recording = true;
@@ -178,23 +175,14 @@ impl ChunkedRecorder {
         Some((resampled, idx))
     }
 
-    /// Add a transcribed partial segment response text
-    pub fn add_partial(&self, index: usize, text: String) {
-        if let Ok(mut state) = self.state.lock() {
-            println!("[ChunkedRecorder] Stored chunk {}: \"{}\"", index, text);
-            state.partial_transcripts.push((index, text));
-        }
-    }
-
     /// Stops recording and returns:
     /// 1. Any remaining audio samples left in the buffer (resampled to 16kHz mono).
-    /// 2. All stored partial transcripts so far.
-    /// 3. The final chunk index (for naming the tail).
-    /// 4. The total elapsed time in milliseconds of the recording session.
-    pub fn stop(&self) -> Result<(Vec<f32>, Vec<(usize, String)>, usize, u32), String> {
+    /// 2. The final chunk index (for naming the tail).
+    /// 3. The total elapsed time in milliseconds of the recording session.
+    pub fn stop(&self) -> Result<(Vec<f32>, usize, u32), String> {
         let mut state = self.state.lock().map_err(|_| "Failed to lock state")?;
         if !state.is_recording {
-            return Ok((Vec::new(), Vec::new(), 0, 0));
+            return Ok((Vec::new(), 0, 0));
         }
 
         state.is_recording = false;
@@ -203,7 +191,6 @@ impl ChunkedRecorder {
         }
 
         let raw_remaining = std::mem::take(&mut state.samples);
-        let partials = std::mem::take(&mut state.partial_transcripts);
         let tail_idx = state.chunk_index;
         let elapsed_ms = match state.start_time {
             Some(t) => t.elapsed().as_millis() as u32,
@@ -230,7 +217,7 @@ impl ChunkedRecorder {
             mono
         };
 
-        Ok((resampled, partials, tail_idx, elapsed_ms))
+        Ok((resampled, tail_idx, elapsed_ms))
     }
 }
 

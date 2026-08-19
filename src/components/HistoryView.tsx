@@ -10,6 +10,7 @@ interface DictationLog {
   elapsed_ms: number;
   mode: string;
   audio_duration_ms: number;
+  model?: string;
 }
 
 export const HistoryView: React.FC = () => {
@@ -182,6 +183,26 @@ export const HistoryView: React.FC = () => {
                   <span style={{ fontSize: 9, fontWeight: 600, padding: "2px 6px", borderRadius: 4, background: item.mode === "Streaming" ? "rgba(6, 182, 212, 0.1)" : "rgba(168, 85, 247, 0.1)", color: item.mode === "Streaming" ? "#22d3ee" : "#c084fc" }}>
                     {item.mode} • {(item.elapsed_ms / 1000).toFixed(2)}s
                   </span>
+
+                  {item.model && (
+                    <span style={{ 
+                      fontSize: 9, 
+                      fontWeight: 600, 
+                      padding: "2px 6px", 
+                      borderRadius: 4, 
+                      background: "rgba(14, 165, 233, 0.12)", 
+                      color: "#38bdf8" 
+                    }}>
+                      {(() => {
+                        switch (item.model.toLowerCase()) {
+                          case "fast": return "⚡ Fast (English)";
+                          case "balanced": return "⚖️ Balanced (Multilingual)";
+                          case "lightweight": return "💻 Lightweight (English)";
+                          default: return item.model.toUpperCase();
+                        }
+                      })()}
+                    </span>
+                  )}
                 </div>
 
                 <button

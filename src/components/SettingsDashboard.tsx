@@ -18,11 +18,14 @@ import {
   Zap,
   LogOut,
   ChevronDown,
-  Globe
+  Globe,
+  Trash2
 } from "lucide-react";
 import { enable as enableAutostart, disable as disableAutostart, isEnabled as isAutostartEnabled } from "@tauri-apps/plugin-autostart";
 
 interface AppSettings {
+  mode?: string;
+  model?: string;
   model_size: string;
   format_mode: string;
   hotkey: string;
@@ -36,6 +39,7 @@ interface AppSettings {
   mic_device?: string;
   whisper_language?: string;
   autostart: boolean;
+  overlay_theme?: string;
 }
 
 interface ModelStatus {
@@ -61,9 +65,10 @@ interface CustomSelectProps {
   value: string;
   onChange: (val: string) => void;
   options: CustomSelectOption[];
+  disabled?: boolean;
 }
 
-const CustomSelect: React.FC<CustomSelectProps> = ({ value, onChange, options }) => {
+const CustomSelect: React.FC<CustomSelectProps> = ({ value, onChange, options, disabled }) => {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -80,9 +85,10 @@ const CustomSelect: React.FC<CustomSelectProps> = ({ value, onChange, options })
   const selectedOption = options.find(o => o.value === value) || options[0];
 
   return (
-    <div ref={containerRef} style={{ position: "relative", width: "100%" }}>
+    <div ref={containerRef} style={{ position: "relative", width: "100%", opacity: disabled ? 0.6 : 1, pointerEvents: disabled ? "none" : "auto" }}>
       <button
         type="button"
+        disabled={disabled}
         onClick={() => setIsOpen(!isOpen)}
         style={{
           display: "flex",
@@ -93,16 +99,16 @@ const CustomSelect: React.FC<CustomSelectProps> = ({ value, onChange, options })
           background: "rgba(255, 255, 255, 0.02)",
           border: "1px solid rgba(6, 182, 212, 0.2)",
           borderRadius: "12px",
-          color: "#fff",
+          color: disabled ? "rgba(255, 255, 255, 0.4)" : "#fff",
           fontSize: "13px",
           textAlign: "left",
-          cursor: "pointer",
+          cursor: disabled ? "not-allowed" : "pointer",
           outline: "none",
           boxShadow: "inset 0 1px 1px rgba(255,255,255,0.05)",
           transition: "border-color 0.2s, box-shadow 0.2s"
         }}
-        onFocus={(e) => e.currentTarget.style.borderColor = "#22d3ee"}
-        onBlur={(e) => e.currentTarget.style.borderColor = "rgba(6, 182, 212, 0.2)"}
+        onFocus={(e) => { if (!disabled) e.currentTarget.style.borderColor = "#22d3ee"; }}
+        onBlur={(e) => { if (!disabled) e.currentTarget.style.borderColor = "rgba(6, 182, 212, 0.2)"; }}
       >
         <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
           {selectedOption ? selectedOption.label : ""}
@@ -281,7 +287,9 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
   if (!isOpen) return null;
 
   const [settings, setSettings] = useState<AppSettings>({
-    model_size: "small",
+    mode: "balanced",
+    model: "ggml-large-v3-turbo.bin",
+    model_size: "balanced",
     format_mode: "none",
     hotkey: "Control+Alt+V",
     cancel_hotkey: "Escape",
@@ -293,7 +301,8 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
     filter_hallucinations: true,
     mic_device: "Default",
     whisper_language: "auto",
-    autostart: false
+    autostart: false,
+    overlay_theme: "dark"
   });
 
   const [originalSettings, setOriginalSettings] = useState<AppSettings | null>(null);
@@ -313,6 +322,19 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
   }, [isLoadingSettings]);
 
   const [isRefreshingStatus, setIsRefreshingStatus] = useState<boolean>(false);
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    onCancel: () => void;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    onConfirm: () => {},
+    onCancel: () => {},
+  });
   const [modelsDir, setModelsDir] = useState<string>("");
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [loadingModelKey, setLoadingModelKey] = useState<string | null>(null);
@@ -492,10 +514,14 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
     setSuccessMsg(null);
     try {
       // Sync autostart plugin state
-      if (settings.autostart) {
-        await enableAutostart();
-      } else {
-        await disableAutostart();
+      try {
+        if (settings.autostart) {
+          await enableAutostart();
+        } else {
+          await disableAutostart();
+        }
+      } catch (e) {
+        console.warn("Failed to update autostart setting (typical in dev mode):", e);
       }
 
       await invoke("update_settings", { settings });
@@ -513,10 +539,14 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
 
   const autoSaveSettings = async (updatedSettings: AppSettings) => {
     try {
-      if (updatedSettings.autostart) {
-        await enableAutostart();
-      } else {
-        await disableAutostart();
+      try {
+        if (updatedSettings.autostart) {
+          await enableAutostart();
+        } else {
+          await disableAutostart();
+        }
+      } catch (e) {
+        console.warn("Failed to auto-save autostart setting (typical in dev mode):", e);
       }
       await invoke("update_settings", { settings: updatedSettings });
       setOriginalSettings(updatedSettings);
@@ -535,14 +565,33 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
       await invoke("switch_backend_model", { modelSize: modelKey });
       
       // Update local settings state and save directly
-      const updated = { ...settings, model_size: modelKey };
+      const filenameMap: Record<string, string> = {
+        fast: "ggml-distil-large-v3.bin",
+        balanced: "ggml-large-v3-turbo.bin",
+        lightweight: "ggml-small.en.bin"
+      };
+      const modelFilename = filenameMap[modelKey] || "";
+      const isEnglishOnly = modelKey === "fast" || modelKey === "lightweight";
+      const updated = { 
+        ...settings, 
+        model_size: modelKey,
+        mode: modelKey,
+        model: modelFilename,
+        whisper_language: isEnglishOnly ? "en" : (settings.whisper_language || "auto")
+      };
       setSettings(updated);
       await autoSaveSettings(updated);
       
       // Emit event so other dashboard components sync immediately
       await emit("model-changed", modelKey);
       
-      setSuccessMsg(`Model '${modelKey.toUpperCase()}' is now active!`);
+      const friendlyNameMap: Record<string, string> = {
+        fast: "Fast (English)",
+        balanced: "Balanced (Multilingual)",
+        lightweight: "Lightweight (English)"
+      };
+      const friendlyName = friendlyNameMap[modelKey] || modelKey.toUpperCase();
+      setSuccessMsg(`Model '${friendlyName}' is now active!`);
       
       // Refresh status map
       const status = await invoke<ModelsStatusMap>("get_models_status");
@@ -552,6 +601,39 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
     } finally {
       setLoadingModelKey(null);
     }
+  };
+
+  const handleDeleteModel = (modelKey: string) => {
+    const friendlyNameMap: Record<string, string> = {
+      fast: "Fast (English)",
+      balanced: "Balanced (Multilingual)",
+      lightweight: "Lightweight (English)"
+    };
+    const friendlyName = friendlyNameMap[modelKey] || modelKey.toUpperCase();
+
+    setConfirmModal({
+      isOpen: true,
+      title: "Delete Model File",
+      message: `Are you sure you want to delete the model for '${friendlyName}' to free space?`,
+      onConfirm: async () => {
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
+        setErrorMsg(null);
+        setSuccessMsg(null);
+        try {
+          await invoke("delete_model", { modelKey });
+          setSuccessMsg(`Model '${friendlyName}' deleted successfully.`);
+          
+          // Refresh status map
+          const status = await invoke<ModelsStatusMap>("get_models_status");
+          setModelsStatus(status);
+        } catch (err: any) {
+          setErrorMsg(`Failed to delete model: ${err}`);
+        }
+      },
+      onCancel: () => {
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
+      }
+    });
   };
 
   const handleRestoreRecommended = () => {
@@ -819,35 +901,50 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
                     <p className="input-help">Whisper sometimes hallucinates song lyrics or "Thank you" during silence. Keep this enabled to automatically discard them.</p>
                   </div>
 
-                  {/* Whisper Language Lock */}
-                  <div className="input-group" style={{ gridColumn: "1 / -1" }}>
-                    <label className="input-label">
-                      <Globe className="h-4 w-4 text-cyan-400" />
-                      <span>Transcription Language</span>
-                    </label>
-                    <CustomSelect
-                      value={settings.whisper_language ?? "auto"}
-                      onChange={(val) => {
-                        setSettings({ ...settings, whisper_language: val });
-                      }}
-                      options={[
-                        { value: "auto", label: "Auto-detect (adds ~200ms detection overhead)" },
-                        { value: "en", label: "English" },
-                        { value: "hi", label: "Hindi" },
-                        { value: "es", label: "Spanish" },
-                        { value: "fr", label: "French" },
-                        { value: "de", label: "German" },
-                        { value: "zh", label: "Chinese (Mandarin)" },
-                        { value: "ja", label: "Japanese" },
-                        { value: "ko", label: "Korean" },
-                        { value: "pt", label: "Portuguese" },
-                        { value: "ru", label: "Russian" },
-                        { value: "ar", label: "Arabic" },
-                        { value: "it", label: "Italian" },
-                      ]}
-                    />
-                    <p className="input-help">Locking to a specific language speeds up transcription by ~15–20% and eliminates cross-language hallucinations. Leave on Auto-detect for multilingual environments.</p>
-                  </div>
+                  {/* Transcription Language Option */}
+                  {(() => {
+                    const isEnglishOnly = settings.mode === "fast" || settings.mode === "lightweight";
+                    const languageValue = isEnglishOnly ? "en" : (settings.whisper_language || "auto");
+                    
+                    return (
+                      <div className="input-group" style={{ gridColumn: "1 / -1" }}>
+                        <label className="input-label">
+                          <Globe className="h-4 w-4 text-cyan-400" />
+                          <span>Transcription Language</span>
+                        </label>
+                        <CustomSelect
+                          value={languageValue}
+                          disabled={isEnglishOnly}
+                          onChange={(val) => setSettings({ ...settings, whisper_language: val })}
+                          options={isEnglishOnly ? [
+                            { value: "en", label: "English only (Locked by active model)" }
+                          ] : [
+                            { value: "auto", label: "Auto Detect Language" },
+                            { value: "en", label: "English (English)" },
+                            { value: "es", label: "Spanish (Español)" },
+                            { value: "fr", label: "French (Français)" },
+                            { value: "de", label: "German (Deutsch)" },
+                            { value: "it", label: "Italian (Italiano)" },
+                            { value: "pt", label: "Portuguese (Português)" },
+                            { value: "zh", label: "Chinese (中文)" },
+                            { value: "ja", label: "Japanese (日本語)" },
+                            { value: "hi", label: "Hindi (हिन्दी)" },
+                            { value: "ru", label: "Russian (Русский)" },
+                            { value: "ko", label: "Korean (한국어)" },
+                            { value: "nl", label: "Dutch (Nederlands)" },
+                            { value: "pl", label: "Polish (Polski)" },
+                            { value: "tr", label: "Turkish (Türkçe)" }
+                          ]}
+                        />
+                        <p className="input-help">
+                          {isEnglishOnly 
+                            ? "Active model supports English dictation only. Change model to use other languages." 
+                            : "Locking transcription to a specific language completely bypasses auto-detection, speeding up results and preventing translation errors on short audio inputs."
+                          }
+                        </p>
+                      </div>
+                    );
+                  })()}
 
                   {/* Auto-Start at Boot */}
                   <div className="input-group" style={{ gridColumn: "1 / -1" }}>
@@ -866,6 +963,25 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
                       ]}
                     />
                     <p className="input-help">Automatically launch Nexora Voice minimized in the system tray when your computer boots up.</p>
+                  </div>
+
+                  {/* Overlay Theme Selection */}
+                  <div className="input-group" style={{ gridColumn: "1 / -1" }}>
+                    <label className="input-label">
+                      <Sliders className="h-4 w-4 text-cyan-400" />
+                      <span>Recording Overlay Theme</span>
+                    </label>
+                    <CustomSelect
+                      value={settings.overlay_theme || "dark"}
+                      onChange={(val) => {
+                        setSettings({ ...settings, overlay_theme: val });
+                      }}
+                      options={[
+                        { value: "dark", label: "Dark Mode (Glowing Cyan Visualizer Capsule)" },
+                        { value: "light", label: "Light Mode (Minimalist White Frosted Glass Capsule)" }
+                      ]}
+                    />
+                    <p className="input-help">Choose between the classic neon cyan visualizer (Dark) or a premium minimalist white frosted-glass visualizer (Light).</p>
                   </div>
                 </div>
               </div>
@@ -910,10 +1026,9 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
               <div className="models-list-card">
                 
                 {[
-                  { key: "tiny", size: "75 MB", label: "Whisper Tiny Model", desc: "Ultra-fast synthesis, lowest VRAM footprint. Best for quick coding prompts." },
-                  { key: "base", size: "140 MB", label: "Whisper Base Model", desc: "Balanced speed and accuracy. Decent for general dictations." },
-                  { key: "small", size: "460 MB", label: "Whisper Small Model", desc: "Highly accurate and robust offline transcription (Default)." },
-                  { key: "large-v3-turbo", size: "1.6 GB", label: "Whisper Large V3 Turbo", desc: "State-of-the-art speed & accuracy. The ultimate dictation quality (needs >4GB VRAM)." }
+                  { key: "lightweight", size: "460 MB", label: "💻 Lightweight (English)", desc: "Whisper Small. Tiny footprint, fast loading, low VRAM usage. Perfect for low-resource English dictation." },
+                  { key: "fast", size: "1.6 GB", label: "⚡ Fast (English)", desc: "Distil-Whisper Large-v3. English-only ultra-fast dictation. Lowest latency, ideal for coding and meetings." },
+                  { key: "balanced", size: "1.6 GB", label: "⚖️ Balanced (Multilingual)", desc: "Whisper Large-v3 Turbo. Best balance of speed and multilingual accuracy. Recommended default." }
                 ].map((m) => {
                   const status = modelsStatus[m.key] || { cached: false, active: false };
                   const isModelLoading = loadingModelKey === m.key;
@@ -938,20 +1053,31 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
                             <span>Active Model</span>
                           </div>
                         ) : status.cached ? (
-                          <button
-                            disabled={loadingModelKey !== null}
-                            onClick={() => handleLoadOrDownloadModel(m.key)}
-                            className="btn-glass"
-                          >
-                            {isModelLoading ? (
-                              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                {downloadProgress !== null && <span>{Math.round(downloadProgress)}%</span>}
-                              </div>
-                            ) : (
-                              "Load Model"
-                            )}
-                          </button>
+                          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                            <button
+                              disabled={loadingModelKey !== null}
+                              onClick={() => handleLoadOrDownloadModel(m.key)}
+                              className="btn-glass"
+                            >
+                              {isModelLoading ? (
+                                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                  {downloadProgress !== null && <span>{Math.round(downloadProgress)}%</span>}
+                                </div>
+                              ) : (
+                                "Load Model"
+                              )}
+                            </button>
+                            <button
+                              disabled={loadingModelKey !== null}
+                              onClick={() => handleDeleteModel(m.key)}
+                              className="btn-glass"
+                              style={{ borderColor: "rgba(239, 68, 68, 0.4)", color: "rgba(239, 68, 68, 0.9)" }}
+                              title="Delete model file"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
                         ) : (
                           <button
                             disabled={loadingModelKey !== null}
@@ -1078,6 +1204,32 @@ export const SettingsDashboard: React.FC<SettingsDashboardProps> = ({ isOpen, on
 
         </main>
       </div>
+
+      {confirmModal.isOpen && (
+        <div className="confirm-modal-overlay">
+          <div className="confirm-modal-content">
+            <div className="confirm-modal-header">
+              <AlertTriangle className="confirm-modal-icon" />
+              <h3>{confirmModal.title}</h3>
+            </div>
+            <p className="confirm-modal-message">{confirmModal.message}</p>
+            <div className="confirm-modal-actions">
+              <button 
+                className="confirm-modal-btn cancel"
+                onClick={confirmModal.onCancel}
+              >
+                Cancel
+              </button>
+              <button 
+                className="confirm-modal-btn confirm"
+                onClick={confirmModal.onConfirm}
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

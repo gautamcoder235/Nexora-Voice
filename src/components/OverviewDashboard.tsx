@@ -30,7 +30,7 @@ export const OverviewDashboard: React.FC = () => {
   const [selectedDateFilter, setSelectedDateFilter] = useState("All");
 
   // Real status bar state
-  const [modelSize, setModelSize] = useState<string>("small");
+  const [modelSize, setModelSize] = useState<string>("balanced");
   const [backendOnline, setBackendOnline] = useState<boolean>(false);
   const [, setTick] = useState(0); // bumped every 10s to refresh relative times
 
@@ -211,7 +211,14 @@ export const OverviewDashboard: React.FC = () => {
             boxShadow: backendOnline ? "0 0 6px #10b981" : "0 0 6px #ef4444",
           }} />
           <span style={{ fontSize: 11, color: "rgba(255, 255, 255, 0.4)", fontFamily: "monospace" }}>
-            whisper-{modelSize}
+            {(() => {
+              switch (modelSize) {
+                case "fast": return "⚡ Fast (English)";
+                case "balanced": return "⚖️ Balanced (Multilingual)";
+                case "lightweight": return "💻 Lightweight (English)";
+                default: return `whisper-${modelSize}`;
+              }
+            })()}
             {avgRtfPct !== null ? ` · ${(avgRtfPct / 100).toFixed(1)}x real-time` : " · calibrating…"}
           </span>
         </div>
