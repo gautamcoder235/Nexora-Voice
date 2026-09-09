@@ -16,6 +16,10 @@
   [![Vulkan](https://img.shields.io/badge/GPU-Vulkan%20Accelerated-E41E25?style=flat-square&logo=vulkan&logoColor=white)](https://www.vulkan.org)
   [![Platform: Windows](https://img.shields.io/badge/Platform-Windows%2010%2B-0078D6?style=flat-square&logo=windows&logoColor=white)](https://microsoft.com)
 
+  <br />
+
+  <img src="docs/screenshots/dashboard.png" alt="Nexora Voice Studio Preview" width="100%" style="border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); margin-top: 16px; margin-bottom: 24px;" />
+
 </div>
 
 ---
@@ -25,6 +29,38 @@
 **Nexora Voice** is an open-source, local-first voice dictation studio engineered for speed, privacy, and frictionless developer productivity. It listens when triggered by a global hotkey and directly types recognized speech into whatever text editor, IDE, terminal, or browser window you are working in.
 
 Unlike cloud-dependent dictation tools, **Nexora Voice processes 100% of your audio locally on your machine**. Your voice never leaves your hardware, eliminating privacy concerns, API subscriptions, and network latency.
+
+---
+
+## 📸 Screenshots & Interface
+
+<div align="center">
+
+### 🎙️ Studio Overview & Dictation Analytics
+*Monitor real-time voice stats, average speaking pace (WPM), and complete transcription history.*
+<img src="docs/screenshots/dashboard.png" alt="Nexora Voice Dashboard" width="100%" style="border-radius: 10px; border: 1px solid rgba(255,255,255,0.08); margin-bottom: 24px;" />
+
+<br />
+
+### 🧠 Offline Speech Models Hub
+*Switch between Fast (Distil-Whisper), Balanced (Large-v3 Turbo), and Lightweight models with instant cache management.*
+<img src="docs/screenshots/models.png" alt="Speech Models Hub" width="100%" style="border-radius: 10px; border: 1px solid rgba(255,255,255,0.08); margin-bottom: 24px;" />
+
+<br />
+
+### ⚙️ Dictation Configurations & Audio Device Settings
+*Customize typing simulation modes, hallucination strippers, silence duration, and startup behaviors.*
+<img src="docs/screenshots/settings.png" alt="Settings & Configurations" width="100%" style="border-radius: 10px; border: 1px solid rgba(255,255,255,0.08); margin-bottom: 24px;" />
+
+<br />
+
+### 💬 Minimalist Floating HUD
+*Subtle floating capsule displaying real-time audio waveform springs and processing ripples.*
+<p align="center">
+  <img src="docs/screenshots/overlay.png" alt="Floating HUD Capsule" width="160" style="border-radius: 14px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 4px 20px rgba(0,0,0,0.5);" />
+</p>
+
+</div>
 
 ---
 
