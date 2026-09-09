@@ -3,8 +3,10 @@
 [package]
 name = "tauri-app"
 version = "0.1.0"
-description = "A Tauri App"
-authors = ["you"]
+description = "Private, low-latency offline voice-to-text desktop studio powered by Whisper & Vulkan GPU acceleration"
+authors = ["Gautam Sharma"]
+license = "MIT"
+repository = "https://github.com/gautamcoder235/Nexora-Voice"
 edition = "2021"
 default-run = "tauri-app"
 

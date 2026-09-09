@@ -1,7 +1,25 @@
 {
-  "name": "tauri-app",
-  "private": true,
+  "name": "nexora-voice",
   "version": "0.1.0",
+  "description": "Private, low-latency offline voice-to-text desktop studio powered by local Whisper and Vulkan GPU acceleration.",
+  "author": "Gautam Sharma",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gautamcoder235/Nexora-Voice.git"
+  },
+  "keywords": [
+    "tauri",
+    "whisper",
+    "voice-to-text",
+    "speech-recognition",
+    "dictation",
+    "vulkan",
+    "rust",
+    "react",
+    "offline-ai",
+    "desktop-app"
+  ],
   "type": "module",
   "scripts": {
     "dev": "vite",
